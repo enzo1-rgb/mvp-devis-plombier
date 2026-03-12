@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Quote, QuoteItem } from '../lib/types';
+import { Quote, QuoteItem, Plombier } from '../lib/types';
 import { ArrowLeft, FileText } from 'lucide-react';
 
 interface QuotePreviewProps {
@@ -8,36 +8,76 @@ interface QuotePreviewProps {
   onBack: () => void;
 }
 
+interface LigneDevisRow {
+  id: string;
+  description: string;
+  quantite: number;
+  prix_unitaire: number;
+  montant_ht: number;
+}
+
 export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
   const [items, setItems] = useState<QuoteItem[]>([]);
+  const [plombier, setPlombier] = useState<Plombier | null>(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState(quote.status);
 
   useEffect(() => {
-    loadQuoteItems();
-  }, [quote.id]);
+    loadData();
+  }, [quote.id, quote.plombier_id]);
 
-  const loadQuoteItems = async () => {
+  const loadData = async () => {
+    setLoading(true);
+    await Promise.all([loadLignes(), loadPlombier()]);
+    setLoading(false);
+  };
+
+  const loadPlombier = async () => {
+    const plombierId = quote.plombier_id;
+    if (!plombierId) return;
     try {
       const { data, error } = await supabase
-        .from('quote_items')
-        .select('*')
-        .eq('quote_id', quote.id);
+        .from('plombiers')
+        .select('id, nom, prenom, adresse, siret')
+        .eq('id', plombierId)
+        .single();
 
       if (error) throw error;
-      setItems(data || []);
+      setPlombier(data as Plombier);
+    } catch (error) {
+      console.error('Erreur lors du chargement du plombier:', error);
+    }
+  };
+
+  const loadLignes = async () => {
+    if (!quote.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('lignes_devis')
+        .select('id, description, quantite, prix_unitaire, montant_ht')
+        .eq('devis_id', quote.id);
+
+      if (error) throw error;
+      setItems(
+        (data || []).map((r: LigneDevisRow) => ({
+          id: r.id,
+          description: r.description,
+          quantite: Number(r.quantite) || 0,
+          prix_unitaire: Number(r.prix_unitaire) || 0,
+          montant_ht: Number(r.montant_ht) || 0,
+        }))
+      );
     } catch (error) {
       console.error('Erreur lors du chargement des lignes:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
   const updateStatus = async (newStatus: Quote['status']) => {
+    if (!quote.id) return;
     try {
       const { error } = await supabase
-        .from('quotes')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .from('devis')
+        .update({ statut: newStatus })
         .eq('id', quote.id);
 
       if (error) throw error;
@@ -79,16 +119,21 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
+      <main className="quote-main max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        <div className="quote-content bg-white rounded-lg shadow-lg p-8 mb-6">
           <div className="flex justify-between items-start mb-8 pb-6 border-b-2">
             <div>
               <h2 className="text-3xl font-bold text-blue-600 mb-2">DEVIS</h2>
               <p className="text-gray-600">
-                Date : {new Date(quote.created_at!).toLocaleDateString('fr-FR')}
+                Date :{' '}
+                {quote.date_emission
+                  ? new Date(quote.date_emission).toLocaleDateString('fr-FR')
+                  : quote.created_at
+                    ? new Date(quote.created_at).toLocaleDateString('fr-FR')
+                    : '-'}
               </p>
               <p className="text-gray-600 text-sm">
-                Référence : {quote.id?.slice(0, 8).toUpperCase()}
+                Référence : {quote.numero ?? quote.id?.slice(0, 8).toUpperCase() ?? '-'}
               </p>
             </div>
             <div className="text-right">
@@ -105,6 +150,23 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
               </select>
             </div>
           </div>
+
+          {plombier && (
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                Émetteur du devis
+              </h3>
+              <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
+                <p className="font-semibold text-gray-800 text-lg">
+                  {plombier.prenom} {plombier.nom}
+                </p>
+                <p className="text-gray-600">{plombier.adresse}</p>
+                <p className="text-gray-600 mt-1">
+                  SIRET : {plombier.siret}
+                </p>
+              </div>
+            </div>
+          )}
 
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-gray-800 mb-3">Informations Client</h3>
@@ -129,18 +191,18 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                 <tbody>
                   {items.map((item, index) => (
                     <tr
-                      key={item.id}
+                      key={item.id ?? index}
                       className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}
                     >
-                      <td className="px-4 py-3 text-gray-800">{item.service_name}</td>
+                      <td className="px-4 py-3 text-gray-800">{item.description}</td>
                       <td className="px-4 py-3 text-right text-gray-600">
-                        {item.unit_price.toFixed(2)} €
+                        {item.prix_unitaire.toFixed(2)} €
                       </td>
                       <td className="px-4 py-3 text-right text-gray-600">
-                        {item.quantity}
+                        {item.quantite}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-gray-800">
-                        {item.total.toFixed(2)} €
+                        {item.montant_ht.toFixed(2)} €
                       </td>
                     </tr>
                   ))}
@@ -179,9 +241,12 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             </div>
           </div>
 
-          <div className="mt-8 pt-6 border-t text-center text-sm text-gray-500">
+          <div className="quote-legal mt-6 pt-4 border-t text-center text-xs text-gray-500">
             <p>Devis valable 30 jours à compter de la date d'émission</p>
-            <p className="mt-1">TVA intracommunautaire non applicable, article 259-1 du CGI</p>
+            <p className="mt-1">
+              TVA au taux de 10% applicable pour les travaux de rénovation (article 279-0 bis du
+              CGI)
+            </p>
           </div>
         </div>
 
@@ -198,11 +263,53 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       <style>
         {`
           @media print {
+            @page {
+              size: A4;
+              margin: 12mm;
+            }
             header, button {
               display: none !important;
             }
             body {
               background: white !important;
+            }
+            .quote-main {
+              padding: 0 1rem !important;
+            }
+            .quote-content {
+              box-shadow: none !important;
+              padding: 0 !important;
+              margin: 0 !important;
+              page-break-inside: avoid;
+            }
+            .quote-content [class*="mb-8"] {
+              margin-bottom: 10px !important;
+            }
+            .quote-content [class*="mb-4"] {
+              margin-bottom: 6px !important;
+            }
+            .quote-content [class*="mb-3"] {
+              margin-bottom: 4px !important;
+            }
+            .quote-content [class*="mb-2"] {
+              margin-bottom: 2px !important;
+            }
+            .quote-content [class*="py-3"] {
+              padding-top: 4px !important;
+              padding-bottom: 4px !important;
+            }
+            .quote-content [class*="py-6"], .quote-content [class*="pt-6"], .quote-content [class*="pb-6"] {
+              padding-top: 6px !important;
+              padding-bottom: 6px !important;
+            }
+            .quote-content table {
+              font-size: 11px;
+            }
+            .quote-legal {
+              margin-top: 6px !important;
+              padding-top: 4px !important;
+              font-size: 9px !important;
+              line-height: 1.2 !important;
             }
           }
         `}

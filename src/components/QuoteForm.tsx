@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { QuoteItem } from '../lib/types';
+import { Prestation, LigneDevis } from '../lib/types';
 import { ArrowLeft, Plus, Trash2, Save } from 'lucide-react';
 
 interface QuoteFormProps {
@@ -8,34 +8,63 @@ interface QuoteFormProps {
   onSuccess: () => void;
 }
 
-const DEFAULT_SERVICES = [
-  { name: 'Installation robinet', price: 80 },
-  { name: 'Réparation chauffe-eau', price: 150 },
-  { name: 'Débouchage canalisation', price: 120 },
-  { name: 'Réparation fuite', price: 90 },
-];
+interface FormItem {
+  prestation_id: string | null;
+  description: string;
+  prix_unitaire: number;
+  quantite: number;
+  montant_ht: number;
+}
 
 export default function QuoteForm({ onBack, onSuccess }: QuoteFormProps) {
   const [clientName, setClientName] = useState('');
   const [clientAddress, setClientAddress] = useState('');
   const [notes, setNotes] = useState('');
-  const [items, setItems] = useState<QuoteItem[]>([
-    { service_name: '', unit_price: 0, quantity: 1, total: 0 },
+  const [items, setItems] = useState<FormItem[]>([
+    { prestation_id: null, description: '', prix_unitaire: 0, quantite: 1, montant_ht: 0 },
   ]);
+  const [prestations, setPrestations] = useState<Prestation[]>([]);
   const [saving, setSaving] = useState(false);
+  const [loadingPrestations, setLoadingPrestations] = useState(true);
 
-  const calculateTotal = (unitPrice: number, quantity: number) => {
-    return unitPrice * quantity;
+  useEffect(() => {
+    loadPrestations();
+  }, []);
+
+  const loadPrestations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('prestations')
+        .select('id, nom, prix_unitaire')
+        .order('nom');
+
+      if (error) {
+        console.warn('Prestations non chargées:', error);
+        setPrestations([]);
+        return;
+      }
+      setPrestations(
+        (data || []).map((p) => ({ ...p, prix_unitaire: Number(p.prix_unitaire) || 0 }))
+      );
+    } catch {
+      setPrestations([]);
+    } finally {
+      setLoadingPrestations(false);
+    }
   };
 
-  const updateItem = (index: number, field: keyof QuoteItem, value: string | number) => {
+  const calculateMontant = (prixUnitaire: number, quantite: number) => {
+    return prixUnitaire * quantite;
+  };
+
+  const updateItem = (index: number, field: keyof FormItem, value: string | number) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
 
-    if (field === 'unit_price' || field === 'quantity') {
-      newItems[index].total = calculateTotal(
-        newItems[index].unit_price,
-        newItems[index].quantity
+    if (field === 'prix_unitaire' || field === 'quantite') {
+      newItems[index].montant_ht = calculateMontant(
+        newItems[index].prix_unitaire,
+        newItems[index].quantite
       );
     }
 
@@ -43,7 +72,10 @@ export default function QuoteForm({ onBack, onSuccess }: QuoteFormProps) {
   };
 
   const addItem = () => {
-    setItems([...items, { service_name: '', unit_price: 0, quantity: 1, total: 0 }]);
+    setItems([
+      ...items,
+      { prestation_id: null, description: '', prix_unitaire: 0, quantite: 1, montant_ht: 0 },
+    ]);
   };
 
   const removeItem = (index: number) => {
@@ -52,18 +84,22 @@ export default function QuoteForm({ onBack, onSuccess }: QuoteFormProps) {
     }
   };
 
-  const addServiceFromTemplate = (serviceName: string, price: number) => {
-    const newItem: QuoteItem = {
-      service_name: serviceName,
-      unit_price: price,
-      quantity: 1,
-      total: price,
-    };
-    setItems([...items, newItem]);
+  const addPrestation = (prestation: Prestation) => {
+    const prix = prestation.prix_unitaire;
+    setItems([
+      ...items,
+      {
+        prestation_id: prestation.id,
+        description: prestation.nom,
+        prix_unitaire: prix,
+        quantite: 1,
+        montant_ht: prix,
+      },
+    ]);
   };
 
   const getTotalHT = () => {
-    return items.reduce((sum, item) => sum + item.total, 0);
+    return items.reduce((sum, item) => sum + item.montant_ht, 0);
   };
 
   const getTVA = () => {
@@ -74,14 +110,24 @@ export default function QuoteForm({ onBack, onSuccess }: QuoteFormProps) {
     return getTotalHT() + getTVA();
   };
 
+  const generateNumero = () => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const d = String(now.getDate()).padStart(2, '0');
+    const h = String(now.getHours()).padStart(2, '0');
+    const min = String(now.getMinutes()).padStart(2, '0');
+    return `DEV-${y}${m}${d}-${h}${min}`;
+  };
+
   const handleSave = async () => {
     if (!clientName.trim() || !clientAddress.trim()) {
       alert('Veuillez remplir le nom et l\'adresse du client');
       return;
     }
 
-    if (items.some((item) => !item.service_name.trim())) {
-      alert('Veuillez remplir tous les noms de prestation');
+    if (items.some((item) => !item.description.trim())) {
+      alert('Veuillez remplir toutes les descriptions de prestation');
       return;
     }
 
@@ -93,38 +139,69 @@ export default function QuoteForm({ onBack, onSuccess }: QuoteFormProps) {
       } = await supabase.auth.getUser();
       if (!user) throw new Error('Non authentifié');
 
-      const { data: quote, error: quoteError } = await supabase
-        .from('quotes')
+      const totalHT = getTotalHT();
+      const tva = getTVA();
+      const totalTTC = getTotalTTC();
+      const dateEmission = new Date().toISOString().split('T')[0];
+      const dateValidite = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
+
+      const { data: client, error: clientError } = await supabase
+        .from('clients')
         .insert({
-          user_id: user.id,
-          client_name: clientName,
-          client_address: clientAddress,
-          status: 'brouillon',
-          notes,
-          total_ht: getTotalHT(),
-          total_ttc: getTotalTTC(),
+          plombier_id: user.id,
+          nom: clientName.trim(),
+          adresse: clientAddress.trim(),
         })
-        .select()
+        .select('id')
         .single();
 
-      if (quoteError) throw quoteError;
+      if (clientError) throw clientError;
+      if (!client?.id) throw new Error('Erreur création client');
 
-      const quoteItems = items.map((item) => ({
-        quote_id: quote.id,
-        service_name: item.service_name,
-        unit_price: item.unit_price,
-        quantity: item.quantity,
-        total: item.total,
+      const { data: devis, error: devisError } = await supabase
+        .from('devis')
+        .insert({
+          plombier_id: user.id,
+          client_id: client.id,
+          numero: generateNumero(),
+          statut: 'brouillon',
+          date_emission: dateEmission,
+          date_validite: dateValidite,
+          montant_ht: totalHT,
+          tva,
+          montant_ttc: totalTTC,
+          notes: notes.trim() || null,
+        })
+        .select('id')
+        .single();
+
+      if (devisError) throw devisError;
+      if (!devis?.id) throw new Error('Erreur création devis');
+
+      const lignes: Omit<LigneDevis, 'id'>[] = items.map((item) => ({
+        devis_id: devis.id,
+        prestation_id: item.prestation_id || null,
+        description: item.description.trim(),
+        quantite: item.quantite,
+        prix_unitaire: item.prix_unitaire,
+        montant_ht: item.montant_ht,
       }));
 
-      const { error: itemsError } = await supabase.from('quote_items').insert(quoteItems);
+      const { error: lignesError } = await supabase.from('lignes_devis').insert(lignes);
 
-      if (itemsError) throw itemsError;
+      if (lignesError) throw lignesError;
 
       onSuccess();
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error);
-      alert('Erreur lors de la sauvegarde du devis');
+    } catch (err) {
+      console.error('Erreur lors de la sauvegarde:', err);
+      const errObj = err as { code?: string; message?: string };
+      const message =
+        errObj?.code === '42P01'
+          ? 'Une des tables (devis, clients, lignes_devis, prestations) n\'existe pas.'
+          : errObj?.message ?? 'Erreur lors de la sauvegarde du devis';
+      alert(message);
     } finally {
       setSaving(false);
     }
@@ -189,20 +266,31 @@ export default function QuoteForm({ onBack, onSuccess }: QuoteFormProps) {
             </button>
           </div>
 
-          <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-            <p className="text-sm font-medium text-gray-700 mb-2">Prestations rapides :</p>
-            <div className="flex flex-wrap gap-2">
-              {DEFAULT_SERVICES.map((service) => (
-                <button
-                  key={service.name}
-                  onClick={() => addServiceFromTemplate(service.name, service.price)}
-                  className="px-3 py-1 bg-white border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-100 transition text-sm"
-                >
-                  {service.name} ({service.price}€)
-                </button>
-              ))}
+          {!loadingPrestations && prestations.length > 0 && (
+            <div className="mb-4 p-4 bg-blue-50 rounded-lg">
+              <p className="text-sm font-medium text-gray-700 mb-2">Prestations rapides :</p>
+              <div className="flex flex-wrap gap-2">
+                {prestations.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => addPrestation(p)}
+                    className="px-3 py-1 bg-white border border-blue-300 text-blue-700 rounded-lg hover:bg-blue-100 transition text-sm"
+                  >
+                    {p.nom} ({p.prix_unitaire}€)
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
+
+          {!loadingPrestations && prestations.length === 0 && (
+            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+              <p className="text-sm text-gray-600">
+                Aucune prestation en base. Ajoutez des prestations manuellement ci-dessous ou dans
+                la table &quot;prestations&quot; Supabase.
+              </p>
+            </div>
+          )}
 
           <div className="space-y-4">
             {items.map((item, index) => (
@@ -210,14 +298,14 @@ export default function QuoteForm({ onBack, onSuccess }: QuoteFormProps) {
                 <div className="grid gap-4 sm:grid-cols-12">
                   <div className="sm:col-span-5">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Prestation
+                      Description
                     </label>
                     <input
                       type="text"
-                      value={item.service_name}
-                      onChange={(e) => updateItem(index, 'service_name', e.target.value)}
+                      value={item.description}
+                      onChange={(e) => updateItem(index, 'description', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="Description"
+                      placeholder="Prestation"
                     />
                   </div>
                   <div className="sm:col-span-3">
@@ -226,8 +314,10 @@ export default function QuoteForm({ onBack, onSuccess }: QuoteFormProps) {
                     </label>
                     <input
                       type="number"
-                      value={item.unit_price}
-                      onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                      value={item.prix_unitaire}
+                      onChange={(e) =>
+                        updateItem(index, 'prix_unitaire', parseFloat(e.target.value) || 0)
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       min="0"
                       step="0.01"
@@ -239,8 +329,10 @@ export default function QuoteForm({ onBack, onSuccess }: QuoteFormProps) {
                     </label>
                     <input
                       type="number"
-                      value={item.quantity}
-                      onChange={(e) => updateItem(index, 'quantity', parseFloat(e.target.value) || 0)}
+                      value={item.quantite}
+                      onChange={(e) =>
+                        updateItem(index, 'quantite', parseFloat(e.target.value) || 0)
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       min="0.01"
                       step="0.01"
@@ -249,10 +341,10 @@ export default function QuoteForm({ onBack, onSuccess }: QuoteFormProps) {
                   <div className="sm:col-span-2 flex items-end">
                     <div className="w-full">
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Total
+                        Total HT
                       </label>
                       <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg font-semibold">
-                        {item.total.toFixed(2)} €
+                        {item.montant_ht.toFixed(2)} €
                       </div>
                     </div>
                     {items.length > 1 && (

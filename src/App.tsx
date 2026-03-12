@@ -66,7 +66,7 @@ function App() {
   return (
     <>
       {currentView === 'dashboard' && (
-        <Dashboard onCreateQuote={handleCreateQuote} onViewQuote={handleViewQuote} />
+        <Dashboard user={user} onCreateQuote={handleCreateQuote} onViewQuote={handleViewQuote} />
       )}
       {currentView === 'create' && (
         <QuoteForm onBack={handleBackToDashboard} onSuccess={handleQuoteCreated} />
