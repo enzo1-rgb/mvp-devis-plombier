@@ -16,11 +16,17 @@ export default function Auth() {
 
     try {
       if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
         });
         if (error) throw error;
+        if (data.user) {
+          await supabase.from('plombiers').insert({
+            id: data.user.id,
+            email: email,
+          });
+        }
         alert('Compte créé avec succès ! Vous pouvez maintenant vous connecter.');
         setIsSignUp(false);
       } else {
