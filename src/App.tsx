@@ -93,16 +93,39 @@ function App() {
         <QuotePreview quote={selectedQuote} onBack={handleBackToDashboard} />
       )}
 
-      {/* Le bouton envoi email avec le contenu du devis sélectionné */}
+      {/* Bouton envoi email avec devis complet et stylé */}
       <SendEmailButton
         quoteHtml={
           selectedQuote
             ? `
-              <h1>Devis pour ${selectedQuote.clientName}</h1>
-              <p>Prestations : ${selectedQuote.prestations
-                .map((p) => `${p.name} - ${p.quantity} x ${p.unitPrice}€`)
-                .join("<br/>")}</p>
-              <p>Total : ${selectedQuote.total}€</p>
+              <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.5;">
+                <h2 style="color: #1D4ED8;">Devis pour ${selectedQuote.clientName}</h2>
+                <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+                  <thead>
+                    <tr>
+                      <th style="border-bottom: 1px solid #ccc; text-align: left; padding: 4px;">Prestation</th>
+                      <th style="border-bottom: 1px solid #ccc; text-align: center; padding: 4px;">Quantité</th>
+                      <th style="border-bottom: 1px solid #ccc; text-align: right; padding: 4px;">Prix Unitaire</th>
+                      <th style="border-bottom: 1px solid #ccc; text-align: right; padding: 4px;">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${selectedQuote.prestations
+                      .map(
+                        (p) => `
+                        <tr>
+                          <td style="padding: 4px;">${p.name}</td>
+                          <td style="padding: 4px; text-align: center;">${p.quantity}</td>
+                          <td style="padding: 4px; text-align: right;">${p.unitPrice}€</td>
+                          <td style="padding: 4px; text-align: right;">${p.quantity * p.unitPrice}€</td>
+                        </tr>
+                      `
+                      )
+                      .join("")}
+                  </tbody>
+                </table>
+                <p style="margin-top: 10px; font-weight: bold; text-align: right;">Total : ${selectedQuote.total}€</p>
+              </div>
             `
             : undefined
         }
