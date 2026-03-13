@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Quote } from '../lib/types';
-import { Plus, FileText, LogOut, Eye, Trash2, Pencil } from 'lucide-react';
+import { Plus, FileText, LogOut, Eye, Trash2, Pencil, Wrench } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import Profile from './Profile';
+import Prestations from './Prestations';
 
 interface DevisRow {
   id: string;
@@ -48,6 +49,7 @@ interface DashboardProps {
 export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuote }: DashboardProps) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [showProfile, setShowProfile] = useState(false);
+  const [showPrestations, setShowPrestations] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -132,6 +134,12 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
     return <Profile user={user} onBack={() => setShowProfile(false)} />;
   }
 
+  if (showPrestations) {
+    return (
+      <Prestations user={user} onBack={() => setShowPrestations(false)} />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-blue-600 text-white shadow-lg">
@@ -142,6 +150,13 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
               <h1 className="text-2xl sm:text-3xl font-bold">Mes Devis</h1>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowPrestations(true)}
+                className="flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition"
+              >
+                <Wrench className="w-4 h-4 mr-2" />
+                <span className="hidden sm:inline">Mes prestations</span>
+              </button>
               <button
                 onClick={() => setShowProfile(true)}
                 className="flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition"

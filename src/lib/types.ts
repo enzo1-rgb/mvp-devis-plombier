@@ -18,11 +18,16 @@ export interface Client {
   created_at?: string;
 }
 
+/** Unités possibles pour une prestation */
+export type UnitePrestation = 'unité' | 'heure' | 'intervention' | 'forfait';
+
 /** Table prestations - services disponibles */
 export interface Prestation {
   id: string;
   nom: string;
   prix_unitaire: number;
+  plombier_id?: string | null;
+  unite?: UnitePrestation;
 }
 
 /** Table lignes_devis */

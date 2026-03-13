@@ -85,18 +85,39 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
 
   const loadPrestations = async () => {
     try {
-      const { data, error } = await supabase
-        .from('prestations')
-        .select('id, nom, prix_unitaire')
-        .order('nom');
+      const { data: { user } } = await supabase.auth.getUser();
+      let query = supabase.from('prestations').select('id, nom, prix_unitaire, unite');
+
+      if (user?.id) {
+        query = query.or(`plombier_id.eq.${user.id},plombier_id.is.null`);
+      }
+
+      const { data, error } = await query.order('nom');
 
       if (error) {
-        console.warn('Prestations non chargées:', error);
-        setPrestations([]);
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('prestations')
+          .select('id, nom, prix_unitaire')
+          .order('nom');
+        if (fallbackError) {
+          console.warn('Prestations non chargées:', error);
+          setPrestations([]);
+          return;
+        }
+        setPrestations(
+          (fallbackData || []).map((p: { id: string; nom: string; prix_unitaire: number }) => ({
+            ...p,
+            prix_unitaire: Number(p.prix_unitaire) || 0,
+          }))
+        );
         return;
       }
       setPrestations(
-        (data || []).map((p) => ({ ...p, prix_unitaire: Number(p.prix_unitaire) || 0 }))
+        (data || []).map((p: { id: string; nom: string; prix_unitaire: number; unite?: string }) => ({
+          ...p,
+          prix_unitaire: Number(p.prix_unitaire) || 0,
+          unite: (p.unite as Prestation['unite']) || 'unité',
+        }))
       );
     } catch {
       setPrestations([]);
