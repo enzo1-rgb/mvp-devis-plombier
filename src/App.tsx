@@ -5,6 +5,7 @@ import Auth from './components/Auth';
 import Dashboard from './components/Dashboard';
 import QuoteForm from './components/QuoteForm';
 import QuotePreview from './components/QuotePreview';
+import SendEmailButton from './components/SendEmailButton';
 import type { User } from '@supabase/supabase-js';
 
 type View = 'dashboard' | 'create' | 'preview';
@@ -79,6 +80,7 @@ function App() {
           onEditQuote={handleEditQuote}
         />
       )}
+
       {currentView === 'create' && (
         <QuoteForm
           onBack={handleBackToDashboard}
@@ -86,9 +88,12 @@ function App() {
           quoteToEdit={selectedQuote ?? undefined}
         />
       )}
+
       {currentView === 'preview' && selectedQuote && (
         <QuotePreview quote={selectedQuote} onBack={handleBackToDashboard} />
       )}
+
+      <SendEmailButton />
     </>
   );
 }
