@@ -93,7 +93,20 @@ function App() {
         <QuotePreview quote={selectedQuote} onBack={handleBackToDashboard} />
       )}
 
-      <SendEmailButton />
+      {/* Le bouton envoi email avec le contenu du devis sélectionné */}
+      <SendEmailButton
+        quoteHtml={
+          selectedQuote
+            ? `
+              <h1>Devis pour ${selectedQuote.clientName}</h1>
+              <p>Prestations : ${selectedQuote.prestations
+                .map((p) => `${p.name} - ${p.quantity} x ${p.unitPrice}€`)
+                .join("<br/>")}</p>
+              <p>Total : ${selectedQuote.total}€</p>
+            `
+            : undefined
+        }
+      />
     </>
   );
 }
