@@ -138,16 +138,47 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-600 mb-1">Statut</p>
-              <select
-                value={status}
-                onChange={(e) => updateStatus(e.target.value as Quote['status'])}
-                className="px-4 py-2 border-2 border-gray-300 rounded-lg font-semibold focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="brouillon">Brouillon</option>
-                <option value="envoyé">Envoyé</option>
-                <option value="accepté">Accepté</option>
-                <option value="refusé">Refusé</option>
-              </select>
+              {status === 'brouillon' && (
+                <div className="flex flex-wrap gap-2 justify-end">
+                  <button
+                    onClick={() => updateStatus('envoyé')}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
+                  >
+                    Marquer comme envoyé
+                  </button>
+                  <button
+                    onClick={() => updateStatus('refusé')}
+                    className="px-4 py-2 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition"
+                  >
+                    Annuler
+                  </button>
+                </div>
+              )}
+              {status === 'envoyé' && (
+                <div className="flex flex-wrap gap-2 justify-end">
+                  <button
+                    onClick={() => updateStatus('accepté')}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition"
+                  >
+                    Accepté
+                  </button>
+                  <button
+                    onClick={() => updateStatus('refusé')}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition"
+                  >
+                    Refusé
+                  </button>
+                </div>
+              )}
+              {(status === 'accepté' || status === 'refusé') && (
+                <span
+                  className={`inline-block px-4 py-2 rounded-lg font-semibold ${
+                    status === 'accepté' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                  }`}
+                >
+                  {status === 'accepté' ? 'Accepté' : 'Refusé'}
+                </span>
+              )}
             </div>
           </div>
 
