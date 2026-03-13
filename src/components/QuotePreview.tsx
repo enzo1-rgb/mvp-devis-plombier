@@ -217,7 +217,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       const subject = `Devis - ${quote.client_name} - ${quote.numero ?? 'Sans référence'}`;
       const html = buildEmailHtml(plombierData, emailItems);
 
-      ${import.meta.env.VITE_EMAIL_SERVER_URL}/send-email
+      const res = await fetch(`${import.meta.env.VITE_EMAIL_SERVER_URL}/send-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to: email, subject, html }),
