@@ -11,25 +11,25 @@ export default function SendEmailButton({ quoteHtml }: SendEmailButtonProps) {
   const handleSendEmail = async () => {
     if (!quoteHtml) {
       setMessage("Aucun contenu de devis à envoyer !");
-      console.log("quoteHtml est vide !"); // ← debug
+      console.log("quoteHtml est vide !");
       return;
     }
 
-    console.log("Contenu du devis envoyé :", quoteHtml); // ← debug
+    console.log("Envoi du HTML :", quoteHtml);
 
     setLoading(true);
     setMessage("");
 
     try {
       const res = await fetch(
-        "https://mvp-devis-plombier-production.up.railway.app/send-email",
+        "https://mvp-devis-plombier-production.up.railway.app/send-email", // backend Railway
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             to: "enzo.keti1@gmail.com", // ton email pour tester
             subject: "Devis Plombier",
-            html: quoteHtml, // le contenu réel du devis
+            html: quoteHtml, // le contenu du devis
           }),
         }
       );
