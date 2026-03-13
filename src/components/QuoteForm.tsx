@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Prestation, LigneDevis } from '../lib/types';
+import { Prestation, LigneDevis, Quote } from '../lib/types';
 import { ArrowLeft, Plus, Trash2, Save } from 'lucide-react';
 
 interface QuoteFormProps {
   onBack: () => void;
   onSuccess: () => void;
+  quoteToEdit?: Quote;
 }
 
 interface FormItem {
@@ -16,7 +17,16 @@ interface FormItem {
   montant_ht: number;
 }
 
-export default function QuoteForm({ onBack, onSuccess }: QuoteFormProps) {
+interface LigneDevisRow {
+  id: string;
+  prestation_id: string | null;
+  description: string;
+  quantite: number;
+  prix_unitaire: number;
+  montant_ht: number;
+}
+
+export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormProps) {
   const [clientName, setClientName] = useState('');
   const [clientAddress, setClientAddress] = useState('');
   const [notes, setNotes] = useState('');
@@ -26,10 +36,52 @@ export default function QuoteForm({ onBack, onSuccess }: QuoteFormProps) {
   const [prestations, setPrestations] = useState<Prestation[]>([]);
   const [saving, setSaving] = useState(false);
   const [loadingPrestations, setLoadingPrestations] = useState(true);
+  const [loadingQuote, setLoadingQuote] = useState(!!quoteToEdit);
 
   useEffect(() => {
     loadPrestations();
   }, []);
+
+  useEffect(() => {
+    if (quoteToEdit?.id) {
+      loadQuoteData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quoteToEdit?.id]);
+
+  const loadQuoteData = async () => {
+    if (!quoteToEdit?.id) return;
+    setLoadingQuote(true);
+    try {
+      setClientName(quoteToEdit.client_name || '');
+      setClientAddress(quoteToEdit.client_address || '');
+      setNotes(quoteToEdit.notes || '');
+
+      const { data, error } = await supabase
+        .from('lignes_devis')
+        .select('id, prestation_id, description, quantite, prix_unitaire, montant_ht')
+        .eq('devis_id', quoteToEdit.id);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        setItems(
+          (data as LigneDevisRow[]).map((r) => ({
+            prestation_id: r.prestation_id || null,
+            description: r.description || '',
+            prix_unitaire: Number(r.prix_unitaire) || 0,
+            quantite: Number(r.quantite) || 1,
+            montant_ht: Number(r.montant_ht) || 0,
+          }))
+        );
+      }
+    } catch (err) {
+      console.error('Erreur lors du chargement du devis:', err);
+      alert('Erreur lors du chargement des données du devis');
+    } finally {
+      setLoadingQuote(false);
+    }
+  };
 
   const loadPrestations = async () => {
     try {
@@ -147,51 +199,104 @@ export default function QuoteForm({ onBack, onSuccess }: QuoteFormProps) {
         .toISOString()
         .split('T')[0];
 
-      const { data: client, error: clientError } = await supabase
-        .from('clients')
-        .insert({
-          plombier_id: user.id,
-          nom: clientName.trim(),
-          adresse: clientAddress.trim(),
-        })
-        .select('id')
-        .single();
+      const isEdit = !!quoteToEdit?.id;
 
-      if (clientError) throw clientError;
-      if (!client?.id) throw new Error('Erreur création client');
+      if (isEdit) {
+        // Mode modification : UPDATE
+        const clientId = quoteToEdit!.client_id!;
+        const devisId = quoteToEdit!.id!;
 
-      const { data: devis, error: devisError } = await supabase
-        .from('devis')
-        .insert({
-          plombier_id: user.id,
-          client_id: client.id,
-          numero: generateNumero(),
-          statut: 'brouillon',
-          date_emission: dateEmission,
-          date_validite: dateValidite,
-          montant_ht: totalHT,
-          tva,
-          montant_ttc: totalTTC,
-          notes: notes.trim() || null,
-        })
-        .select('id')
-        .single();
+        const { error: clientError } = await supabase
+          .from('clients')
+          .update({
+            nom: clientName.trim(),
+            adresse: clientAddress.trim(),
+          })
+          .eq('id', clientId);
 
-      if (devisError) throw devisError;
-      if (!devis?.id) throw new Error('Erreur création devis');
+        if (clientError) throw clientError;
 
-      const lignes: Omit<LigneDevis, 'id'>[] = items.map((item) => ({
-        devis_id: devis.id,
-        prestation_id: item.prestation_id || null,
-        description: item.description.trim(),
-        quantite: item.quantite,
-        prix_unitaire: item.prix_unitaire,
-        montant_ht: item.montant_ht,
-      }));
+        const { error: devisError } = await supabase
+          .from('devis')
+          .update({
+            date_emission: dateEmission,
+            date_validite: dateValidite,
+            montant_ht: totalHT,
+            tva,
+            montant_ttc: totalTTC,
+            notes: notes.trim() || null,
+          })
+          .eq('id', devisId);
 
-      const { error: lignesError } = await supabase.from('lignes_devis').insert(lignes);
+        if (devisError) throw devisError;
 
-      if (lignesError) throw lignesError;
+        const { error: deleteLignesError } = await supabase
+          .from('lignes_devis')
+          .delete()
+          .eq('devis_id', devisId);
+
+        if (deleteLignesError) throw deleteLignesError;
+
+        const lignes: Omit<LigneDevis, 'id'>[] = items.map((item) => ({
+          devis_id: devisId,
+          prestation_id: item.prestation_id || null,
+          description: item.description.trim(),
+          quantite: item.quantite,
+          prix_unitaire: item.prix_unitaire,
+          montant_ht: item.montant_ht,
+        }));
+
+        const { error: lignesError } = await supabase.from('lignes_devis').insert(lignes);
+
+        if (lignesError) throw lignesError;
+      } else {
+        // Mode création : INSERT
+        const { data: client, error: clientError } = await supabase
+          .from('clients')
+          .insert({
+            plombier_id: user.id,
+            nom: clientName.trim(),
+            adresse: clientAddress.trim(),
+          })
+          .select('id')
+          .single();
+
+        if (clientError) throw clientError;
+        if (!client?.id) throw new Error('Erreur création client');
+
+        const { data: devis, error: devisError } = await supabase
+          .from('devis')
+          .insert({
+            plombier_id: user.id,
+            client_id: client.id,
+            numero: generateNumero(),
+            statut: 'brouillon',
+            date_emission: dateEmission,
+            date_validite: dateValidite,
+            montant_ht: totalHT,
+            tva,
+            montant_ttc: totalTTC,
+            notes: notes.trim() || null,
+          })
+          .select('id')
+          .single();
+
+        if (devisError) throw devisError;
+        if (!devis?.id) throw new Error('Erreur création devis');
+
+        const lignes: Omit<LigneDevis, 'id'>[] = items.map((item) => ({
+          devis_id: devis.id,
+          prestation_id: item.prestation_id || null,
+          description: item.description.trim(),
+          quantite: item.quantite,
+          prix_unitaire: item.prix_unitaire,
+          montant_ht: item.montant_ht,
+        }));
+
+        const { error: lignesError } = await supabase.from('lignes_devis').insert(lignes);
+
+        if (lignesError) throw lignesError;
+      }
 
       onSuccess();
     } catch (err) {
@@ -207,6 +312,17 @@ export default function QuoteForm({ onBack, onSuccess }: QuoteFormProps) {
     }
   };
 
+  if (loadingQuote) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          <p className="mt-4 text-gray-600">Chargement du devis...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-blue-600 text-white shadow-lg">
@@ -218,7 +334,9 @@ export default function QuoteForm({ onBack, onSuccess }: QuoteFormProps) {
             >
               <ArrowLeft className="w-6 h-6" />
             </button>
-            <h1 className="text-2xl sm:text-3xl font-bold">Nouveau Devis</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold">
+              {quoteToEdit ? 'Modifier le devis' : 'Nouveau Devis'}
+            </h1>
           </div>
         </div>
       </header>
@@ -397,7 +515,7 @@ export default function QuoteForm({ onBack, onSuccess }: QuoteFormProps) {
           className="w-full flex items-center justify-center px-6 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold text-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Save className="w-6 h-6 mr-2" />
-          {saving ? 'Enregistrement...' : 'Enregistrer le devis'}
+          {saving ? 'Enregistrement...' : quoteToEdit ? 'Mettre à jour le devis' : 'Enregistrer le devis'}
         </button>
       </main>
     </div>

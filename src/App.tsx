@@ -31,6 +31,12 @@ function App() {
   }, []);
 
   const handleCreateQuote = () => {
+    setSelectedQuote(null);
+    setCurrentView('create');
+  };
+
+  const handleEditQuote = (quote: Quote) => {
+    setSelectedQuote(quote);
     setCurrentView('create');
   };
 
@@ -66,10 +72,19 @@ function App() {
   return (
     <>
       {currentView === 'dashboard' && (
-        <Dashboard user={user} onCreateQuote={handleCreateQuote} onViewQuote={handleViewQuote} />
+        <Dashboard
+          user={user}
+          onCreateQuote={handleCreateQuote}
+          onViewQuote={handleViewQuote}
+          onEditQuote={handleEditQuote}
+        />
       )}
       {currentView === 'create' && (
-        <QuoteForm onBack={handleBackToDashboard} onSuccess={handleQuoteCreated} />
+        <QuoteForm
+          onBack={handleBackToDashboard}
+          onSuccess={handleQuoteCreated}
+          quoteToEdit={selectedQuote ?? undefined}
+        />
       )}
       {currentView === 'preview' && selectedQuote && (
         <QuotePreview quote={selectedQuote} onBack={handleBackToDashboard} />

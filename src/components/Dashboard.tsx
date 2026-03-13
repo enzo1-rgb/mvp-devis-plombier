@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Quote } from '../lib/types';
-import { Plus, FileText, LogOut, Eye, Trash2 } from 'lucide-react';
+import { Plus, FileText, LogOut, Eye, Trash2, Pencil } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
 import Profile from './Profile';
 
@@ -42,9 +42,10 @@ interface DashboardProps {
   user: User;
   onCreateQuote: () => void;
   onViewQuote: (quote: Quote) => void;
+  onEditQuote: (quote: Quote) => void;
 }
 
-export default function Dashboard({ user, onCreateQuote, onViewQuote }: DashboardProps) {
+export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuote }: DashboardProps) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [showProfile, setShowProfile] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -225,6 +226,13 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote }: Dashboar
                   >
                     <Eye className="w-4 h-4 mr-1" />
                     Voir
+                  </button>
+                  <button
+                    onClick={() => onEditQuote(quote)}
+                    className="flex-1 flex items-center justify-center px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition text-sm font-medium"
+                  >
+                    <Pencil className="w-4 h-4 mr-1" />
+                    Modifier
                   </button>
                   <button
                     onClick={() => deleteQuote(quote.id!)}
