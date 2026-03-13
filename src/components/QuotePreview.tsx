@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Quote, QuoteItem, Plombier } from '../lib/types';
-import { ArrowLeft, FileText } from 'lucide-react';
+import { ArrowLeft, FileText, Mail } from 'lucide-react';
 
 interface QuotePreviewProps {
   quote: Quote;
@@ -21,10 +21,14 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
   const [plombier, setPlombier] = useState<Plombier | null>(null);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState(quote.status);
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [clientEmail, setClientEmail] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
-  }, [quote.id, quote.plombier_id]);
+  }, [quote.id]);
 
   const loadData = async () => {
     setLoading(true);
@@ -33,13 +37,15 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
   };
 
   const loadPlombier = async () => {
-    const plombierId = quote.plombier_id;
-    if (!plombierId) return;
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      if (!userId) return;
+
       const { data, error } = await supabase
         .from('plombiers')
-        .select('id, nom, prenom, adresse, siret')
-        .eq('id', plombierId)
+        .select('id, nom, prenom, adresse, siret, nom_entreprise')
+        .eq('id', userId)
         .single();
 
       if (error) throw error;
@@ -89,6 +95,149 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
 
   const getTVA = () => {
     return quote.total_ht * 0.1;
+  };
+
+  const buildEmailHtml = (
+    plombierData: { nom: string; prenom: string; adresse: string; siret: string; nom_entreprise?: string } | null,
+    emailItems: { description: string; prix_unitaire: number; quantite: number; montant_ht: number }[]
+  ) => {
+    const plombierBlock = plombierData
+      ? `
+      <div style="margin: 20px 0; padding: 15px; background: #eff6ff; border-left: 4px solid #2563eb; border-radius: 4px;">
+        <h3 style="margin: 0 0 10px 0; color: #1e40af;">Émetteur du devis</h3>
+        ${plombierData.nom_entreprise ? `<p style="margin: 0; font-weight: 600;">${String(plombierData.nom_entreprise)}</p>` : ''}
+        <p style="margin: ${plombierData.nom_entreprise ? '5px' : '0'} 0 0 0; font-weight: 600;">${String(plombierData.prenom ?? '')} ${String(plombierData.nom ?? '')}</p>
+        <p style="margin: 5px 0 0 0; color: #4b5563;">${String(plombierData.adresse ?? '')}</p>
+        <p style="margin: 5px 0 0 0; color: #4b5563;">SIRET : ${String(plombierData.siret ?? '')}</p>
+      </div>
+    `
+      : '';
+
+    const lignesRows = emailItems
+      .map(
+        (item) => `
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${String(item.description ?? '')}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">${Number(item.prix_unitaire || 0).toFixed(2)} €</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">${Number(item.quantite || 0)}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right; font-weight: 600;">${Number(item.montant_ht || 0).toFixed(2)} €</td>
+      </tr>
+    `
+      )
+      .join('');
+
+    return `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h1 style="color: #2563eb; margin-bottom: 20px;">DEVIS</h1>
+        <p style="color: #6b7280;">Date : ${quote.date_emission ? new Date(quote.date_emission).toLocaleDateString('fr-FR') : quote.created_at ? new Date(quote.created_at).toLocaleDateString('fr-FR') : '-'}</p>
+        <p style="color: #6b7280; font-size: 14px;">Référence : ${quote.numero ?? quote.id?.slice(0, 8).toUpperCase() ?? '-'}</p>
+
+        <div style="margin: 20px 0; padding: 15px; background: #f9fafb; border-radius: 4px;">
+          <h3 style="margin: 0 0 10px 0; color: #374151;">Informations Client</h3>
+          <p style="margin: 0; font-weight: 600;">${quote.client_name}</p>
+          <p style="margin: 5px 0 0 0; color: #6b7280;">${quote.client_address}</p>
+        </div>
+        ${plombierBlock}
+
+        <h3 style="margin: 25px 0 10px 0; color: #374151;">Détail des Prestations</h3>
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+          <thead>
+            <tr style="background: #2563eb; color: white;">
+              <th style="padding: 10px; text-align: left;">Prestation</th>
+              <th style="padding: 10px; text-align: right;">Prix unitaire</th>
+              <th style="padding: 10px; text-align: right;">Quantité</th>
+              <th style="padding: 10px; text-align: right;">Total</th>
+            </tr>
+          </thead>
+          <tbody>${lignesRows}</tbody>
+        </table>
+
+        ${quote.notes ? `<div style="margin: 20px 0; padding: 15px; background: #fffbeb; border-left: 4px solid #facc15; border-radius: 4px;"><p style="margin: 0; color: #78350f;">${quote.notes}</p></div>` : ''}
+
+        <div style="border-top: 2px solid #2563eb; padding-top: 15px; margin-top: 20px;">
+          <p style="margin: 5px 0;"><span style="color: #4b5563;">Total HT :</span> <strong>${quote.total_ht.toFixed(2)} €</strong></p>
+          <p style="margin: 5px 0;"><span style="color: #4b5563;">TVA (10%) :</span> <strong>${getTVA().toFixed(2)} €</strong></p>
+          <p style="margin: 15px 0 5px 0; font-size: 18px;"><span style="color: #2563eb; font-weight: bold;">Total TTC :</span> <strong>${quote.total_ttc.toFixed(2)} €</strong></p>
+        </div>
+
+        <p style="margin-top: 30px; font-size: 12px; color: #9ca3af; text-align: center;">Devis valable 30 jours à compter de la date d'émission. TVA au taux de 10% applicable pour les travaux de rénovation.</p>
+      </div>
+    `;
+  };
+
+  const sendEmail = async () => {
+    const email = clientEmail.trim();
+    if (!email) {
+      setEmailError('Veuillez saisir une adresse email valide.');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError('Adresse email invalide.');
+      return;
+    }
+
+    setEmailError(null);
+    setSendingEmail(true);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const plombierId = quote.plombier_id ?? sessionData.session?.user?.id;
+      let plombierData: { nom: string; prenom: string; adresse: string; siret: string; nom_entreprise?: string } | null = null;
+
+      if (plombierId) {
+        const { data: plombier, error: plombierError } = await supabase
+          .from('plombiers')
+          .select('nom, prenom, adresse, siret, nom_entreprise')
+          .eq('id', plombierId)
+          .single();
+        if (!plombierError && plombier) {
+          plombierData = plombier;
+        }
+      }
+
+      const { data: lignesData } = await supabase
+        .from('lignes_devis')
+        .select(`
+          description,
+          quantite,
+          prix_unitaire,
+          montant_ht,
+          prestations (nom)
+        `)
+        .eq('devis_id', quote.id);
+
+      const emailItems = (lignesData || []).map((row: { description?: string; quantite?: number; prix_unitaire?: number; montant_ht?: number; prestations?: { nom?: string } | null }) => ({
+        description: row.description ?? (row.prestations as { nom?: string } | null)?.nom ?? '',
+        quantite: Number(row.quantite) || 0,
+        prix_unitaire: Number(row.prix_unitaire) || 0,
+        montant_ht: Number(row.montant_ht) || 0,
+      }));
+
+      const subject = `Devis - ${quote.client_name} - ${quote.numero ?? 'Sans référence'}`;
+      const html = buildEmailHtml(plombierData, emailItems);
+
+      const res = await fetch('http://localhost:3001/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: email, subject, html }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || `Erreur ${res.status}`);
+      }
+
+      await updateStatus('envoyé');
+      setShowEmailForm(false);
+      setClientEmail('');
+      alert('Devis envoyé par email avec succès.');
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : 'Erreur lors de l\'envoi.');
+    } finally {
+      setSendingEmail(false);
+    }
   };
 
   if (loading) {
@@ -188,12 +337,17 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                 Émetteur du devis
               </h3>
               <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
+                {plombier.nom_entreprise && (
+                  <p className="font-semibold text-gray-800 text-lg">
+                    {plombier.nom_entreprise}
+                  </p>
+                )}
                 <p className="font-semibold text-gray-800 text-lg">
-                  {plombier.prenom} {plombier.nom}
+                  {plombier.prenom || ''} {plombier.nom || ''}
                 </p>
-                <p className="text-gray-600">{plombier.adresse}</p>
+                <p className="text-gray-600">{plombier.adresse || ''}</p>
                 <p className="text-gray-600 mt-1">
-                  SIRET : {plombier.siret}
+                  SIRET : {plombier.siret || ''}
                 </p>
               </div>
             </div>
@@ -281,13 +435,71 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
           </div>
         </div>
 
-        <div className="text-center">
-          <button
-            onClick={() => window.print()}
-            className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold shadow-md"
-          >
-            Imprimer le devis
-          </button>
+        <div className="text-center space-y-4">
+          <div className="flex flex-wrap justify-center gap-3">
+            <button
+              onClick={() => window.print()}
+              className="flex items-center px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold shadow-md"
+            >
+              Imprimer le devis
+            </button>
+            <button
+              onClick={() => {
+                setShowEmailForm(!showEmailForm);
+                setEmailError(null);
+                setClientEmail('');
+              }}
+              className="flex items-center px-8 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-semibold shadow-md"
+            >
+              <Mail className="w-5 h-5 mr-2" />
+              Envoyer par email
+            </button>
+          </div>
+
+          {showEmailForm && (
+            <div className="bg-white border border-gray-200 rounded-lg shadow-md p-6 max-w-md mx-auto text-left">
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Envoyer le devis par email</h3>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email du client
+                </label>
+                <input
+                  type="email"
+                  value={clientEmail}
+                  onChange={(e) => {
+                    setClientEmail(e.target.value);
+                    setEmailError(null);
+                  }}
+                  placeholder="client@exemple.fr"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  disabled={sendingEmail}
+                />
+              </div>
+              {emailError && (
+                <p className="text-red-600 text-sm mb-3">{emailError}</p>
+              )}
+              <div className="flex gap-2">
+                <button
+                  onClick={sendEmail}
+                  disabled={sendingEmail}
+                  className="flex-1 flex items-center justify-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition font-medium"
+                >
+                  {sendingEmail ? 'Envoi en cours...' : 'Envoyer'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowEmailForm(false);
+                    setEmailError(null);
+                    setClientEmail('');
+                  }}
+                  disabled={sendingEmail}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 

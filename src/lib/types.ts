@@ -5,6 +5,7 @@ export interface Plombier {
   prenom: string;
   adresse: string;
   siret: string;
+  nom_entreprise?: string;
 }
 
 /** Table clients - informations client */

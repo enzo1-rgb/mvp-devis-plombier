@@ -1,0 +1,4 @@
+# Désactive la vérification JWT pour la fonction send-email
+# La fonction accepte toutes les requêtes POST sans authentification
+[functions.send-email]
+verify_jwt = false
