@@ -44,6 +44,7 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
   const [formPrix, setFormPrix] = useState('');
   const [formUnite, setFormUnite] = useState<UnitePrestation>('unité');
   const [saving, setSaving] = useState(false);
+  const [prestationToDelete, setPrestationToDelete] = useState<Prestation | null>(null);
 
   useEffect(() => {
     loadPrestations();
@@ -93,7 +94,6 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
   };
 
   const openEditForm = (p: Prestation) => {
-    if (p.plombier_id === undefined || p.plombier_id === null) return;
     setFormNom(p.nom);
     setFormPrix(String(p.prix_unitaire));
     setFormUnite(p.unite || 'unité');
@@ -105,14 +105,8 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
     const nom = formNom.trim();
     const prix = parseFloat(formPrix.replace(',', '.'));
 
-    if (!nom) {
-      alert('Veuillez saisir un nom.');
-      return;
-    }
-    if (isNaN(prix) || prix < 0) {
-      alert('Veuillez saisir un prix valide.');
-      return;
-    }
+    if (!nom) { alert('Veuillez saisir un nom.'); return; }
+    if (isNaN(prix) || prix < 0) { alert('Veuillez saisir un prix valide.'); return; }
 
     setSaving(true);
     try {
@@ -120,8 +114,7 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
         const { error: err } = await supabase
           .from('prestations')
           .update({ nom, prix_unitaire: prix, unite: formUnite })
-          .eq('id', editingId)
-          .eq('plombier_id', user.id);
+          .eq('id', editingId);
 
         if (err) throw err;
         setPrestations((prev) =>
@@ -132,47 +125,37 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
       } else {
         const { data, error: err } = await supabase
           .from('prestations')
-          .insert({
-            plombier_id: user.id,
-            nom,
-            prix_unitaire: prix,
-            unite: formUnite,
-          })
+          .insert({ plombier_id: user.id, nom, prix_unitaire: prix, unite: formUnite })
           .select('id, nom, prix_unitaire, plombier_id, unite')
           .single();
 
         if (err) throw err;
         if (data) {
-          setPrestations((prev) => [...prev, toPrestation(data as PrestationRow)].sort((a, b) => a.nom.localeCompare(b.nom)));
+          setPrestations((prev) =>
+            [...prev, toPrestation(data as PrestationRow)].sort((a, b) => a.nom.localeCompare(b.nom))
+          );
         }
       }
       resetForm();
     } catch (err) {
-      console.error('Erreur:', err);
       alert((err as { message?: string })?.message ?? 'Erreur lors de la sauvegarde.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: string, plombierId: string | null | undefined) => {
-    if (plombierId === undefined || plombierId === null) {
-      alert('Les prestations par défaut ne peuvent pas être supprimées.');
-      return;
-    }
-    if (!confirm('Supprimer cette prestation ?')) return;
-
+  const handleDelete = async () => {
+    if (!prestationToDelete) return;
     try {
       const { error: err } = await supabase
         .from('prestations')
         .delete()
-        .eq('id', id)
-        .eq('plombier_id', user.id);
+        .eq('id', prestationToDelete.id);
 
       if (err) throw err;
-      setPrestations((prev) => prev.filter((p) => p.id !== id));
+      setPrestations((prev) => prev.filter((p) => p.id !== prestationToDelete.id));
+      setPrestationToDelete(null);
     } catch (err) {
-      console.error('Erreur:', err);
       alert((err as { message?: string })?.message ?? 'Erreur lors de la suppression.');
     }
   };
@@ -186,10 +169,7 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
         <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <button
-                onClick={onBack}
-                className="mr-4 p-2 hover:bg-blue-700 rounded-lg transition"
-              >
+              <button onClick={onBack} className="mr-4 p-2 hover:bg-blue-700 rounded-lg transition">
                 <ArrowLeft className="w-6 h-6" />
               </button>
               <h1 className="text-2xl sm:text-3xl font-bold">Mes Prestations</h1>
@@ -209,9 +189,7 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
         {error && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
             <p className="font-medium">{error}</p>
-            <button onClick={loadPrestations} className="mt-2 text-sm underline">
-              Réessayer
-            </button>
+            <button onClick={loadPrestations} className="mt-2 text-sm underline">Réessayer</button>
           </div>
         )}
 
@@ -232,9 +210,7 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Prix unitaire (€)
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Prix unitaire (€)</label>
                 <input
                   type="text"
                   value={formPrix}
@@ -251,9 +227,7 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   {UNITES.map((u) => (
-                    <option key={u.value} value={u.value}>
-                      {u.label}
-                    </option>
+                    <option key={u.value} value={u.value}>{u.label}</option>
                   ))}
                 </select>
               </div>
@@ -286,13 +260,8 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
         ) : prestations.length === 0 && !error ? (
           <div className="bg-white rounded-lg shadow-md p-12 text-center">
             <p className="text-gray-600 text-lg">Aucune prestation</p>
-            <p className="text-gray-500 mt-2">
-              Les prestations par défaut et vos prestations personnalisées apparaîtront ici.
-            </p>
-            <button
-              onClick={openAddForm}
-              className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
+            <p className="text-gray-500 mt-2">Les prestations par défaut et vos prestations personnalisées apparaîtront ici.</p>
+            <button onClick={openAddForm} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
               Ajouter une prestation
             </button>
           </div>
@@ -304,40 +273,32 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
                   <th className="px-4 py-3 font-semibold text-gray-700">Nom</th>
                   <th className="px-4 py-3 font-semibold text-gray-700">Prix unitaire</th>
                   <th className="px-4 py-3 font-semibold text-gray-700">Unité</th>
-                  <th className="px-4 py-3 font-semibold text-gray-700 text-right">
-                    Actions
-                  </th>
+                  <th className="px-4 py-3 font-semibold text-gray-700 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {prestations.map((p) => (
                   <tr key={p.id} className="border-t border-gray-200 hover:bg-gray-50">
                     <td className="px-4 py-3 text-gray-800">{p.nom}</td>
-                    <td className="px-4 py-3 text-gray-600">
-                      {p.prix_unitaire.toFixed(2)} €
-                    </td>
+                    <td className="px-4 py-3 text-gray-600">{p.prix_unitaire.toFixed(2)} €</td>
                     <td className="px-4 py-3 text-gray-600">{formatUnite(p.unite)}</td>
                     <td className="px-4 py-3 text-right">
-                      {p.plombier_id ? (
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => openEditForm(p)}
-                            className="p-2 text-amber-600 hover:bg-amber-50 rounded-lg transition"
-                            title="Modifier"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(p.id, p.plombier_id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                            title="Supprimer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400">Par défaut</span>
-                      )}
+                      <div className="flex justify-end gap-2">
+                        <button
+                          onClick={() => openEditForm(p)}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition text-sm font-medium"
+                        >
+                          <Pencil className="w-4 h-4" />
+                          Modifier
+                        </button>
+                        <button
+                          onClick={() => setPrestationToDelete(p)}
+                          className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Supprimer
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -346,6 +307,32 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
           </div>
         )}
       </main>
+
+      {/* Modal de confirmation suppression */}
+      {prestationToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full text-center">
+            <h2 className="text-lg font-semibold mb-4">⚠️ Confirmer la suppression</h2>
+            <p className="mb-6 text-gray-700">
+              Vous allez supprimer définitivement la prestation <strong>{prestationToDelete.nom}</strong>. Voulez-vous continuer ?
+            </p>
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+              >
+                Supprimer
+              </button>
+              <button
+                onClick={() => setPrestationToDelete(null)}
+                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
