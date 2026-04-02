@@ -109,14 +109,26 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
     await supabase.auth.signOut();
   };
 
-  const deleteQuote = async (id: string) => {
+  const deleteQuote = async (id?: string) => {
+    if (!id) return;
     if (!confirm('Êtes-vous sûr de vouloir supprimer ce devis ?')) return;
+
     try {
-      const { error } = await supabase.from('devis').delete().eq('id', id);
-      if (error) throw error;
-      setQuotes(quotes.filter((q) => q.id !== id));
-    } catch (error) {
-      console.error('Erreur lors de la suppression:', error);
+      const { error } = await supabase
+        .from('devis')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        console.error('Erreur lors de la suppression:', error.message);
+        alert(`Impossible de supprimer le devis : ${error.message}`);
+        return;
+      }
+
+      setQuotes((prevQuotes) => prevQuotes.filter((q) => q.id !== id));
+    } catch (err) {
+      console.error('Erreur inattendue lors de la suppression:', err);
+      alert('Erreur inattendue lors de la suppression du devis.');
     }
   };
 
@@ -130,15 +142,8 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
     return styles[status];
   };
 
-  if (showProfile) {
-    return <Profile user={user} onBack={() => setShowProfile(false)} />;
-  }
-
-  if (showPrestations) {
-    return (
-      <Prestations user={user} onBack={() => setShowPrestations(false)} />
-    );
-  }
+  if (showProfile) return <Profile user={user} onBack={() => setShowProfile(false)} />;
+  if (showPrestations) return <Prestations user={user} onBack={() => setShowPrestations(false)} />;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -211,9 +216,7 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
             {quotes.map((quote) => (
               <div key={quote.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition p-6">
                 <div className="flex justify-between items-start mb-3">
-                  <h3 className="text-lg font-semibold text-gray-800 truncate">
-                    {quote.client_name}
-                  </h3>
+                  <h3 className="text-lg font-semibold text-gray-800 truncate">{quote.client_name}</h3>
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(quote.status)}`}>
                     {quote.status}
                   </span>
@@ -230,9 +233,7 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
                   </div>
                 </div>
                 <div className="flex justify-between items-center text-xs text-gray-500 mb-4">
-                  <span>
-                    {quote.created_at ? new Date(quote.created_at).toLocaleDateString('fr-FR') : '-'}
-                  </span>
+                  <span>{quote.created_at ? new Date(quote.created_at).toLocaleDateString('fr-FR') : '-'}</span>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -250,7 +251,7 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
                     Modifier
                   </button>
                   <button
-                    onClick={() => deleteQuote(quote.id!)}
+                    onClick={() => deleteQuote(quote.id)}
                     className="flex items-center justify-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
                   >
                     <Trash2 className="w-4 h-4" />
