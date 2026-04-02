@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
-import { Quote } from '../lib/types';
-import { Plus, FileText, LogOut, Eye, Trash2, Pencil, Wrench } from 'lucide-react';
-import { User } from '@supabase/supabase-js';
-import Profile from './Profile';
-import Prestations from './Prestations';
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
+import { Quote } from "../lib/types";
+import { Plus, FileText, LogOut, Eye, Trash2, Pencil, Wrench } from "lucide-react";
+import { User } from "@supabase/supabase-js";
+import Profile from "./Profile";
+import Prestations from "./Prestations";
 
 interface DevisRow {
   id: string;
@@ -26,10 +26,10 @@ function toQuote(row: DevisRow): Quote {
     id: row.id,
     plombier_id: row.plombier_id,
     client_id: row.client_id,
-    client_name: row.clients?.nom ?? '',
-    client_address: row.clients?.adresse ?? '',
+    client_name: row.clients?.nom ?? "",
+    client_address: row.clients?.adresse ?? "",
     numero: row.numero ?? undefined,
-    status: (row.statut as Quote['status']) ?? 'brouillon',
+    status: (row.statut as Quote["status"]) ?? "brouillon",
     date_emission: row.date_emission ?? undefined,
     total_ht: Number(row.montant_ht) || 0,
     tva: Number(row.tva) || 0,
@@ -53,6 +53,9 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // State pour modal de confirmation
+  const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null);
+
   useEffect(() => {
     loadQuotes();
   }, []);
@@ -62,12 +65,12 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
-        setError('Session expirée. Veuillez vous reconnecter.');
+        setError("Session expirée. Veuillez vous reconnecter.");
         return;
       }
 
       const { data, error } = await supabase
-        .from('devis')
+        .from("devis")
         .select(`
           id,
           plombier_id,
@@ -82,24 +85,24 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
           created_at,
           clients (nom, adresse)
         `)
-        .eq('plombier_id', sessionData.session.user.id)
-        .order('created_at', { ascending: false });
+        .eq("plombier_id", sessionData.session.user.id)
+        .order("created_at", { ascending: false });
 
       if (error) {
-        if (error.code === '42P01') {
+        if (error.code === "42P01") {
           setError('La table "devis" n\'existe pas. Vérifiez la configuration Supabase.');
         } else {
           setError(`Erreur Supabase: ${error.message}`);
         }
-        console.error('Erreur lors du chargement des devis:', error);
+        console.error("Erreur lors du chargement des devis:", error);
         return;
       }
 
       setQuotes((data || []).map((r) => toQuote(r as unknown as DevisRow)));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Erreur inconnue';
+      const msg = err instanceof Error ? err.message : "Erreur inconnue";
       setError(msg);
-      console.error('Erreur lors du chargement des devis:', err);
+      console.error("Erreur lors du chargement des devis:", err);
     } finally {
       setLoading(false);
     }
@@ -111,33 +114,33 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
 
   const deleteQuote = async (id?: string) => {
     if (!id) return;
-    if (!confirm('Êtes-vous sûr de vouloir supprimer ce devis ?')) return;
 
     try {
       const { error } = await supabase
-        .from('devis')
+        .from("devis")
         .delete()
-        .eq('id', id);
+        .eq("id", id);
 
       if (error) {
-        console.error('Erreur lors de la suppression:', error.message);
+        console.error("Erreur Supabase lors de la suppression :", error.message);
         alert(`Impossible de supprimer le devis : ${error.message}`);
         return;
       }
 
-      setQuotes((prevQuotes) => prevQuotes.filter((q) => q.id !== id));
+      setQuotes((prev) => prev.filter((q) => q.id !== id));
+      setQuoteToDelete(null);
     } catch (err) {
-      console.error('Erreur inattendue lors de la suppression:', err);
-      alert('Erreur inattendue lors de la suppression du devis.');
+      console.error("Erreur inattendue lors de la suppression :", err);
+      alert("Erreur inattendue lors de la suppression du devis.");
     }
   };
 
-  const getStatusBadge = (status: Quote['status']) => {
+  const getStatusBadge = (status: Quote["status"]) => {
     const styles = {
-      brouillon: 'bg-gray-100 text-gray-700',
-      envoyé: 'bg-blue-100 text-blue-700',
-      accepté: 'bg-green-100 text-green-700',
-      refusé: 'bg-red-100 text-red-700',
+      brouillon: "bg-gray-100 text-gray-700",
+      envoyé: "bg-blue-100 text-blue-700",
+      accepté: "bg-green-100 text-green-700",
+      refusé: "bg-red-100 text-red-700",
     };
     return styles[status];
   };
@@ -155,23 +158,14 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
               <h1 className="text-2xl sm:text-3xl font-bold">Mes Devis</h1>
             </div>
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowPrestations(true)}
-                className="flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition"
-              >
+              <button onClick={() => setShowPrestations(true)} className="flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition">
                 <Wrench className="w-4 h-4 mr-2" />
                 <span className="hidden sm:inline">Mes prestations</span>
               </button>
-              <button
-                onClick={() => setShowProfile(true)}
-                className="flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition"
-              >
+              <button onClick={() => setShowProfile(true)} className="flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition">
                 <span className="hidden sm:inline">Mon profil</span>
               </button>
-              <button
-                onClick={handleSignOut}
-                className="flex items-center px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded-lg transition"
-              >
+              <button onClick={handleSignOut} className="flex items-center px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded-lg transition">
                 <LogOut className="w-4 h-4 mr-2" />
                 <span className="hidden sm:inline">Déconnexion</span>
               </button>
@@ -182,10 +176,7 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
 
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-6">
-          <button
-            onClick={onCreateQuote}
-            className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold shadow-md"
-          >
+          <button onClick={onCreateQuote} className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold shadow-md">
             <Plus className="w-5 h-5 mr-2" />
             Nouveau Devis
           </button>
@@ -233,27 +224,16 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
                   </div>
                 </div>
                 <div className="flex justify-between items-center text-xs text-gray-500 mb-4">
-                  <span>{quote.created_at ? new Date(quote.created_at).toLocaleDateString('fr-FR') : '-'}</span>
+                  <span>{quote.created_at ? new Date(quote.created_at).toLocaleDateString("fr-FR") : "-"}</span>
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => onViewQuote(quote)}
-                    className="flex-1 flex items-center justify-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
-                  >
-                    <Eye className="w-4 h-4 mr-1" />
-                    Voir
+                  <button onClick={() => onViewQuote(quote)} className="flex-1 flex items-center justify-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium">
+                    <Eye className="w-4 h-4 mr-1" /> Voir
                   </button>
-                  <button
-                    onClick={() => onEditQuote(quote)}
-                    className="flex-1 flex items-center justify-center px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition text-sm font-medium"
-                  >
-                    <Pencil className="w-4 h-4 mr-1" />
-                    Modifier
+                  <button onClick={() => onEditQuote(quote)} className="flex-1 flex items-center justify-center px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition text-sm font-medium">
+                    <Pencil className="w-4 h-4 mr-1" /> Modifier
                   </button>
-                  <button
-                    onClick={() => deleteQuote(quote.id)}
-                    className="flex items-center justify-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-                  >
+                  <button onClick={() => setQuoteToDelete(quote)} className="flex items-center justify-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -262,6 +242,33 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
           </div>
         )}
       </main>
+
+      {/* 🔹 Modal de confirmation suppression */}
+      {quoteToDelete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm text-center">
+            <h2 className="text-lg font-semibold mb-4">⚠️ Attention !</h2>
+            <p className="mb-6">
+              Vous êtes sur le point de supprimer définitivement le devis de <strong>{quoteToDelete.client_name}</strong> et toutes ses lignes associées.
+              Voulez-vous continuer ?
+            </p>
+            <div className="flex justify-center gap-4">
+              <button
+                onClick={() => deleteQuote(quoteToDelete.id)}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+              >
+                Supprimer
+              </button>
+              <button
+                onClick={() => setQuoteToDelete(null)}
+                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
