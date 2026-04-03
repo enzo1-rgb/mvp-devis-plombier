@@ -26,6 +26,10 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
 
+  // Modal de confirmation annulation
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showStatusEdit, setShowStatusEdit] = useState(false);
+
   useEffect(() => {
     loadData();
   }, [quote.id]);
@@ -91,6 +95,11 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
     } catch (error) {
       console.error('Erreur lors de la mise à jour du statut:', error);
     }
+  };
+
+  const handleCancelConfirmed = async () => {
+    setShowCancelConfirm(false);
+    await updateStatus('refusé');
   };
 
   const getTVA = () => {
@@ -287,6 +296,8 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-600 mb-1">Statut</p>
+
+              {/* Statut : brouillon */}
               {status === 'brouillon' && (
                 <div className="flex flex-wrap gap-2 justify-end">
                   <button
@@ -296,13 +307,15 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                     Marquer comme envoyé
                   </button>
                   <button
-                    onClick={() => updateStatus('refusé')}
+                    onClick={() => setShowCancelConfirm(true)}
                     className="px-4 py-2 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition"
                   >
                     Annuler
                   </button>
                 </div>
               )}
+
+              {/* Statut : envoyé — avec bouton Retour */}
               {status === 'envoyé' && (
                 <div className="flex flex-wrap gap-2 justify-end">
                   <button
@@ -317,16 +330,58 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                   >
                     Refusé
                   </button>
+                  <button
+                    onClick={() => updateStatus('brouillon')}
+                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition"
+                  >
+                    ← Retour
+                  </button>
                 </div>
               )}
+
               {(status === 'accepté' || status === 'refusé') && (
-                <span
-                  className={`inline-block px-4 py-2 rounded-lg font-semibold ${
-                    status === 'accepté' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                  }`}
-                >
-                  {status === 'accepté' ? 'Accepté' : 'Refusé'}
-                </span>
+                <div className="flex flex-col items-end gap-2">
+                  {!showStatusEdit ? (
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-block px-4 py-2 rounded-lg font-semibold ${status === 'accepté' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                        {status === 'accepté' ? 'Accepté' : 'Refusé'}
+                      </span>
+                      <button
+                        onClick={() => setShowStatusEdit(true)}
+                        className="px-3 py-2 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition"
+                      >
+                        Modifier
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap gap-2 justify-end">
+                      <button
+                        onClick={() => { updateStatus('brouillon'); setShowStatusEdit(false); }}
+                        className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition text-sm"
+                      >
+                        Brouillon
+                      </button>
+                      <button
+                        onClick={() => { updateStatus('accepté'); setShowStatusEdit(false); }}
+                        className="px-3 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition text-sm"
+                      >
+                        Accepté
+                      </button>
+                      <button
+                        onClick={() => { updateStatus('refusé'); setShowStatusEdit(false); }}
+                        className="px-3 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition text-sm"
+                      >
+                        Refusé
+                      </button>
+                      <button
+                        onClick={() => setShowStatusEdit(false)}
+                        className="px-3 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition text-sm"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -502,6 +557,32 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
           )}
         </div>
       </main>
+
+      {/* 🔹 Modal de confirmation annulation du devis */}
+      {showCancelConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Annuler ce devis ?</h3>
+            <p className="text-gray-500 text-sm mb-6">
+              Le devis sera marqué comme <strong className="text-red-600">refusé</strong>. Cette action peut être difficile à annuler.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowCancelConfirm(false)}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
+              >
+                Retour
+              </button>
+              <button
+                onClick={handleCancelConfirmed}
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition"
+              >
+                Confirmer l'annulation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>
         {`

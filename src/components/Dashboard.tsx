@@ -53,8 +53,11 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // State pour modal de confirmation
+  // State pour modal de confirmation suppression
   const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null);
+
+  // State pour modal de confirmation déconnexion
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     loadQuotes();
@@ -109,6 +112,7 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
   };
 
   const handleSignOut = async () => {
+    setShowLogoutConfirm(false);
     await supabase.auth.signOut();
   };
 
@@ -165,7 +169,7 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
               <button onClick={() => setShowProfile(true)} className="flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition">
                 <span className="hidden sm:inline">Mon profil</span>
               </button>
-              <button onClick={handleSignOut} className="flex items-center px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded-lg transition">
+              <button onClick={() => setShowLogoutConfirm(true)} className="flex items-center px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded-lg transition">
                 <LogOut className="w-4 h-4 mr-2" />
                 <span className="hidden sm:inline">Déconnexion</span>
               </button>
@@ -264,6 +268,30 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
                 className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition"
               >
                 Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🔹 Modal de confirmation déconnexion */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Se déconnecter ?</h3>
+            <p className="text-gray-500 text-sm mb-6">Vous allez être déconnecté de votre espace plombier.</p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowLogoutConfirm(false)}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition"
+              >
+                Se déconnecter
               </button>
             </div>
           </div>
