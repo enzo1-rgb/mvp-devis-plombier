@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { Quote } from "../lib/types";
-import { Plus, FileText, LogOut, Eye, Trash2, Pencil, Wrench } from "lucide-react";
-import { User } from "@supabase/supabase-js";
+import { Plus, ChevronRight, User, Wrench, LogOut, Search, FileText } from "lucide-react";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 import Profile from "./Profile";
 import Prestations from "./Prestations";
 
@@ -39,8 +39,15 @@ function toQuote(row: DevisRow): Quote {
   };
 }
 
+const STATUS_CONFIG = {
+  brouillon: { label: "Brouillon", className: "pill-brouillon" },
+  envoyé:    { label: "Envoyé",    className: "pill-envoyé"    },
+  accepté:   { label: "Accepté",   className: "pill-accepté"   },
+  refusé:    { label: "Refusé",    className: "pill-refusé"    },
+} as const;
+
 interface DashboardProps {
-  user: User;
+  user: SupabaseUser;
   onCreateQuote: () => void;
   onViewQuote: (quote: Quote) => void;
   onEditQuote: (quote: Quote) => void;
@@ -50,14 +57,13 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [showProfile, setShowProfile] = useState(false);
   const [showPrestations, setShowPrestations] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // State pour modal de confirmation suppression
-  const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null);
-
-  // State pour modal de confirmation déconnexion
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("tous");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null);
 
   useEffect(() => {
     loadQuotes();
@@ -67,45 +73,18 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
     setError(null);
     try {
       const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        setError("Session expirée. Veuillez vous reconnecter.");
-        return;
-      }
+      if (!sessionData.session) { setError("Session expirée."); return; }
 
       const { data, error } = await supabase
         .from("devis")
-        .select(`
-          id,
-          plombier_id,
-          client_id,
-          numero,
-          statut,
-          date_emission,
-          montant_ht,
-          tva,
-          montant_ttc,
-          notes,
-          created_at,
-          clients (nom, adresse)
-        `)
+        .select(`id, plombier_id, client_id, numero, statut, date_emission, montant_ht, tva, montant_ttc, notes, created_at, clients (nom, adresse)`)
         .eq("plombier_id", sessionData.session.user.id)
         .order("created_at", { ascending: false });
 
-      if (error) {
-        if (error.code === "42P01") {
-          setError('La table "devis" n\'existe pas. Vérifiez la configuration Supabase.');
-        } else {
-          setError(`Erreur Supabase: ${error.message}`);
-        }
-        console.error("Erreur lors du chargement des devis:", error);
-        return;
-      }
-
+      if (error) { setError(`Erreur: ${error.message}`); return; }
       setQuotes((data || []).map((r) => toQuote(r as unknown as DevisRow)));
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Erreur inconnue";
-      setError(msg);
-      console.error("Erreur lors du chargement des devis:", err);
+      setError(err instanceof Error ? err.message : "Erreur inconnue");
     } finally {
       setLoading(false);
     }
@@ -118,180 +97,275 @@ export default function Dashboard({ user, onCreateQuote, onViewQuote, onEditQuot
 
   const deleteQuote = async (id?: string) => {
     if (!id) return;
-
     try {
-      const { error } = await supabase
-        .from("devis")
-        .delete()
-        .eq("id", id);
-
-      if (error) {
-        console.error("Erreur Supabase lors de la suppression :", error.message);
-        alert(`Impossible de supprimer le devis : ${error.message}`);
-        return;
-      }
-
+      const { error } = await supabase.from("devis").delete().eq("id", id);
+      if (error) { alert(`Impossible de supprimer : ${error.message}`); return; }
       setQuotes((prev) => prev.filter((q) => q.id !== id));
       setQuoteToDelete(null);
-    } catch (err) {
-      console.error("Erreur inattendue lors de la suppression :", err);
-      alert("Erreur inattendue lors de la suppression du devis.");
-    }
-  };
-
-  const getStatusBadge = (status: Quote["status"]) => {
-    const styles = {
-      brouillon: "bg-gray-100 text-gray-700",
-      envoyé: "bg-blue-100 text-blue-700",
-      accepté: "bg-green-100 text-green-700",
-      refusé: "bg-red-100 text-red-700",
-    };
-    return styles[status];
+    } catch { alert("Erreur inattendue."); }
   };
 
   if (showProfile) return <Profile user={user} onBack={() => setShowProfile(false)} />;
   if (showPrestations) return <Prestations user={user} onBack={() => setShowPrestations(false)} />;
 
+  // Stats
+  const totalCA = quotes.filter(q => q.status === "accepté").reduce((s, q) => s + q.total_ttc, 0);
+  const tauxAcceptation = quotes.filter(q => q.status !== "brouillon").length > 0
+    ? Math.round((quotes.filter(q => q.status === "accepté").length / quotes.filter(q => q.status !== "brouillon").length) * 100)
+    : 0;
+
+  // Filtered quotes
+  const filtered = quotes.filter(q => {
+    const matchSearch = q.client_name.toLowerCase().includes(search.toLowerCase()) ||
+      (q.numero ?? "").toLowerCase().includes(search.toLowerCase());
+    const matchStatus = filterStatus === "tous" || q.status === filterStatus;
+    return matchSearch && matchStatus;
+  });
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-blue-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center">
-              <FileText className="w-8 h-8 mr-3" />
-              <h1 className="text-2xl sm:text-3xl font-bold">Mes Devis</h1>
+    <div className="min-h-screen pb-24" style={{ background: 'var(--bg)' }}>
+
+      {/* Header */}
+      <header style={{ background: 'var(--navy)' }} className="sticky top-0 z-30">
+        <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'var(--orange)' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+              </svg>
             </div>
-            <div className="flex items-center gap-3">
-              <button onClick={() => setShowPrestations(true)} className="flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition">
-                <Wrench className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">Mes prestations</span>
-              </button>
-              <button onClick={() => setShowProfile(true)} className="flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg transition">
-                <span className="hidden sm:inline">Mon profil</span>
-              </button>
-              <button onClick={() => setShowLogoutConfirm(true)} className="flex items-center px-4 py-2 bg-blue-700 hover:bg-blue-800 rounded-lg transition">
-                <LogOut className="w-4 h-4 mr-2" />
-                <span className="hidden sm:inline">Déconnexion</span>
-              </button>
-            </div>
+            <span className="text-white font-bold text-lg tracking-tight">Mes Devis</span>
+          </div>
+
+          {/* Menu button */}
+          <div className="relative">
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="w-9 h-9 rounded-full flex items-center justify-center transition"
+              style={{ background: 'rgba(255,255,255,0.1)' }}
+            >
+              <div className="w-6 h-6 flex flex-col justify-center gap-1.5 items-center">
+                <span className="block w-4 h-0.5 bg-white rounded"></span>
+                <span className="block w-4 h-0.5 bg-white rounded"></span>
+                <span className="block w-4 h-0.5 bg-white rounded"></span>
+              </div>
+            </button>
+
+            {showMenu && (
+              <div className="absolute right-0 top-11 bg-white rounded-2xl shadow-xl border border-slate-100 py-2 w-52 z-50">
+                <button
+                  onClick={() => { setShowMenu(false); setShowPrestations(true); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-slate-700 hover:bg-slate-50 transition text-sm font-medium"
+                >
+                  <Wrench className="w-4 h-4 text-slate-400" />
+                  Mes prestations
+                </button>
+                <button
+                  onClick={() => { setShowMenu(false); setShowProfile(true); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-slate-700 hover:bg-slate-50 transition text-sm font-medium"
+                >
+                  <User className="w-4 h-4 text-slate-400" />
+                  Mon profil
+                </button>
+                <div className="border-t border-slate-100 my-1" />
+                <button
+                  onClick={() => { setShowMenu(false); setShowLogoutConfirm(true); }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-red-500 hover:bg-red-50 transition text-sm font-medium"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Déconnexion
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <button onClick={onCreateQuote} className="flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold shadow-md">
-            <Plus className="w-5 h-5 mr-2" />
-            Nouveau Devis
-          </button>
+      {/* Click outside to close menu */}
+      {showMenu && <div className="fixed inset-0 z-20" onClick={() => setShowMenu(false)} />}
+
+      <div className="max-w-2xl mx-auto px-4 pt-5">
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3 mb-5">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <p className="text-xs text-slate-400 font-medium mb-1">Total</p>
+            <p className="text-2xl font-bold" style={{ color: 'var(--navy)' }}>{quotes.length}</p>
+            <p className="text-xs text-slate-400">devis</p>
+          </div>
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <p className="text-xs text-slate-400 font-medium mb-1">CA accepté</p>
+            <p className="text-xl font-bold" style={{ color: 'var(--navy)' }}>{totalCA >= 1000 ? `${(totalCA/1000).toFixed(1)}k` : totalCA.toFixed(0)}€</p>
+            <p className="text-xs text-slate-400">TTC</p>
+          </div>
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <p className="text-xs text-slate-400 font-medium mb-1">Taux</p>
+            <p className="text-2xl font-bold" style={{ color: tauxAcceptation >= 50 ? '#22c55e' : 'var(--navy)' }}>{tauxAcceptation}%</p>
+            <p className="text-xs text-slate-400">acceptés</p>
+          </div>
         </div>
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-            <p className="font-medium">{error}</p>
-            <button onClick={loadQuotes} className="mt-2 text-sm underline hover:no-underline">
-              Réessayer
+        {/* Search */}
+        <div className="relative mb-3">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <input
+            className="input-field pl-10"
+            placeholder="Rechercher un client, une référence..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        {/* Status filter */}
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+          {["tous", "brouillon", "envoyé", "accepté", "refusé"].map(s => (
+            <button
+              key={s}
+              onClick={() => setFilterStatus(s)}
+              className="whitespace-nowrap px-4 py-1.5 rounded-full text-sm font-semibold transition-all"
+              style={
+                filterStatus === s
+                  ? { background: 'var(--navy)', color: 'white' }
+                  : { background: 'white', color: '#64748b', border: '1.5px solid #e2e8f0' }
+              }
+            >
+              {s === "tous" ? "Tous" : s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
+          ))}
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-sm">
+            {error}
+            <button onClick={loadQuotes} className="ml-2 underline">Réessayer</button>
           </div>
         )}
 
+        {/* Loading */}
         {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-            <p className="mt-4 text-gray-600">Chargement...</p>
+          <div className="text-center py-16">
+            <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: 'var(--orange)' }}></div>
+            <p className="mt-3 text-slate-400 text-sm">Chargement...</p>
           </div>
-        ) : quotes.length === 0 && !error ? (
-          <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <FileText className="w-16 h-16 mx-auto text-gray-400 mb-4" />
-            <p className="text-gray-600 text-lg">Aucun devis pour le moment</p>
-            <p className="text-gray-500 mt-2">Créez votre premier devis pour commencer</p>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-16 bg-white rounded-2xl shadow-sm border border-slate-100">
+            <FileText className="w-12 h-12 mx-auto text-slate-200 mb-3" />
+            <p className="text-slate-500 font-medium">
+              {search || filterStatus !== "tous" ? "Aucun résultat" : "Aucun devis pour l'instant"}
+            </p>
+            {!search && filterStatus === "tous" && (
+              <p className="text-slate-400 text-sm mt-1">Appuyez sur + pour créer votre premier devis</p>
+            )}
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {quotes.map((quote) => (
-              <div key={quote.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition p-6">
-                <div className="flex justify-between items-start mb-3">
-                  <h3 className="text-lg font-semibold text-gray-800 truncate">{quote.client_name}</h3>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusBadge(quote.status)}`}>
-                    {quote.status}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600 mb-4 truncate">{quote.client_address}</p>
-                <div className="border-t pt-4 mb-4">
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600">Total HT</span>
-                    <span className="font-medium">{quote.total_ht.toFixed(2)} €</span>
+          <div className="space-y-2">
+            {filtered.map((quote) => {
+              const cfg = STATUS_CONFIG[quote.status as keyof typeof STATUS_CONFIG];
+              return (
+                <div
+                  key={quote.id}
+                  className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden"
+                >
+                  <button
+                    onClick={() => onViewQuote(quote)}
+                    className="w-full text-left p-4 flex items-center gap-3 active:bg-slate-50 transition"
+                  >
+                    {/* Status bar */}
+                    <div
+                      className="w-1 self-stretch rounded-full flex-shrink-0"
+                      style={{
+                        background: quote.status === 'accepté' ? '#22c55e'
+                          : quote.status === 'refusé' ? '#ef4444'
+                          : quote.status === 'envoyé' ? '#3b82f6'
+                          : '#cbd5e1'
+                      }}
+                    />
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <p className="font-bold text-slate-800 truncate">{quote.client_name}</p>
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${cfg.className}`}>
+                          {cfg.label}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-slate-400 truncate">
+                          {quote.numero ?? quote.id.slice(0, 8).toUpperCase()}
+                          {quote.created_at && (
+                            <span className="ml-2">
+                              · {new Date(quote.created_at).toLocaleDateString("fr-FR")}
+                            </span>
+                          )}
+                        </p>
+                        <p className="text-sm font-bold text-slate-700 flex-shrink-0">
+                          {quote.total_ttc.toFixed(0)} €
+                        </p>
+                      </div>
+                    </div>
+
+                    <ChevronRight className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                  </button>
+
+                  {/* Actions */}
+                  <div className="border-t border-slate-50 flex divide-x divide-slate-50">
+                    <button
+                      onClick={() => onEditQuote(quote)}
+                      className="flex-1 py-2.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 hover:text-orange-500 transition"
+                    >
+                      Modifier
+                    </button>
+                    <button
+                      onClick={() => setQuoteToDelete(quote)}
+                      className="flex-1 py-2.5 text-xs font-semibold text-slate-500 hover:bg-red-50 hover:text-red-500 transition"
+                    >
+                      Supprimer
+                    </button>
                   </div>
-                  <div className="flex justify-between text-sm font-semibold text-blue-600">
-                    <span>Total TTC</span>
-                    <span>{quote.total_ttc.toFixed(2)} €</span>
-                  </div>
                 </div>
-                <div className="flex justify-between items-center text-xs text-gray-500 mb-4">
-                  <span>{quote.created_at ? new Date(quote.created_at).toLocaleDateString("fr-FR") : "-"}</span>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => onViewQuote(quote)} className="flex-1 flex items-center justify-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium">
-                    <Eye className="w-4 h-4 mr-1" /> Voir
-                  </button>
-                  <button onClick={() => onEditQuote(quote)} className="flex-1 flex items-center justify-center px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition text-sm font-medium">
-                    <Pencil className="w-4 h-4 mr-1" /> Modifier
-                  </button>
-                  <button onClick={() => setQuoteToDelete(quote)} className="flex items-center justify-center px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
-      </main>
+      </div>
 
-      {/* 🔹 Modal de confirmation suppression */}
-      {quoteToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm text-center">
-            <h2 className="text-lg font-semibold mb-4">⚠️ Attention !</h2>
-            <p className="mb-6">
-              Vous êtes sur le point de supprimer définitivement le devis de <strong>{quoteToDelete.client_name}</strong> et toutes ses lignes associées.
-              Voulez-vous continuer ?
-            </p>
-            <div className="flex justify-center gap-4">
-              <button
-                onClick={() => deleteQuote(quoteToDelete.id)}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-              >
-                Supprimer
-              </button>
-              <button
-                onClick={() => setQuoteToDelete(null)}
-                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition"
-              >
+      {/* FAB */}
+      <button className="fab" onClick={onCreateQuote}>
+        <Plus className="w-6 h-6" />
+      </button>
+
+      {/* Modal déconnexion */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+            <h3 className="text-lg font-bold text-slate-800 mb-1">Se déconnecter ?</h3>
+            <p className="text-slate-500 text-sm mb-6">Vous allez être déconnecté de votre espace.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowLogoutConfirm(false)} className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition">
                 Annuler
+              </button>
+              <button onClick={handleSignOut} className="flex-1 py-3 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 transition">
+                Déconnexion
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 🔹 Modal de confirmation déconnexion */}
-      {showLogoutConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Se déconnecter ?</h3>
-            <p className="text-gray-500 text-sm mb-6">Vous allez être déconnecté de votre espace plombier.</p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowLogoutConfirm(false)}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
-              >
+      {/* Modal suppression */}
+      {quoteToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+            <h3 className="text-lg font-bold text-slate-800 mb-1">Supprimer ce devis ?</h3>
+            <p className="text-slate-500 text-sm mb-6">
+              Le devis de <strong>{quoteToDelete.client_name}</strong> sera supprimé définitivement.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setQuoteToDelete(null)} className="flex-1 py-3 rounded-xl border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition">
                 Annuler
               </button>
-              <button
-                onClick={handleSignOut}
-                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition"
-              >
-                Se déconnecter
+              <button onClick={() => deleteQuote(quoteToDelete.id)} className="flex-1 py-3 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 transition">
+                Supprimer
               </button>
             </div>
           </div>
