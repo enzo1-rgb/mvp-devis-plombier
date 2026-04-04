@@ -25,14 +25,22 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
   const [clientEmail, setClientEmail] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
-
-  // Modal de confirmation annulation
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showStatusEdit, setShowStatusEdit] = useState(false);
+
+  // Toast de confirmation pour la génération de facture
+  const [toast, setToast] = useState<{ message: string; ok: boolean } | null>(null);
+  const [acceptLoading, setAcceptLoading] = useState(false);
 
   useEffect(() => {
     loadData();
   }, [quote.id]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(null), 3500);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const loadData = async () => {
     setLoading(true);
@@ -82,6 +90,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
     }
   };
 
+  // ── Met à jour uniquement le statut (sans générer de facture) ───────────────
   const updateStatus = async (newStatus: Quote['status']) => {
     if (!quote.id) return;
     try {
@@ -94,6 +103,58 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       setStatus(newStatus);
     } catch (error) {
       console.error('Erreur lors de la mise à jour du statut:', error);
+    }
+  };
+
+  // ── Accepte le devis ET génère la facture dans Supabase ─────────────────────
+  const handleAcceptQuote = async () => {
+    setAcceptLoading(true);
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      if (!userId) throw new Error('Non authentifié');
+
+      // 1. Vérifier qu'une facture n'existe pas déjà pour ce devis
+      const { data: existing } = await supabase
+        .from('factures')
+        .select('id')
+        .eq('devis_id', quote.id)
+        .maybeSingle();
+
+      // 2. Mettre le devis en "accepté" dans tous les cas
+      await updateStatus('accepté');
+      setShowStatusEdit(false);
+
+      if (existing) {
+        setToast({ message: 'Devis accepté (facture déjà existante).', ok: true });
+        return;
+      }
+
+      // 3. Générer le numéro de facture
+      const numFacture = `FACT-${new Date().getFullYear()}-${Math.floor(
+        1000 + Math.random() * 9000
+      )}`;
+
+      // 4. Insérer la facture dans Supabase
+      const { error: insertError } = await supabase.from('factures').insert({
+        plombier_id: userId,
+        devis_id: quote.id,
+        client_id: quote.client_id,
+        numero_facture: numFacture,
+        montant_ht: quote.total_ht,
+        tva: quote.tva,
+        montant_ttc: quote.total_ttc,
+        statut: 'non_payée',
+      });
+
+      if (insertError) throw insertError;
+
+      setToast({ message: `Facture ${numFacture} générée !`, ok: true });
+    } catch (err) {
+      console.error(err);
+      setToast({ message: 'Erreur lors de la génération de la facture.', ok: false });
+    } finally {
+      setAcceptLoading(false);
     }
   };
 
@@ -195,25 +256,19 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       let plombierData: { nom: string; prenom: string; adresse: string; siret: string; nom_entreprise?: string } | null = null;
 
       if (plombierId) {
-        const { data: plombier, error: plombierError } = await supabase
+        const { data: plombierRow, error: plombierError } = await supabase
           .from('plombiers')
           .select('nom, prenom, adresse, siret, nom_entreprise')
           .eq('id', plombierId)
           .single();
-        if (!plombierError && plombier) {
-          plombierData = plombier;
+        if (!plombierError && plombierRow) {
+          plombierData = plombierRow;
         }
       }
 
       const { data: lignesData } = await supabase
         .from('lignes_devis')
-        .select(`
-          description,
-          quantite,
-          prix_unitaire,
-          montant_ht,
-          prestations (nom)
-        `)
+        .select(`description, quantite, prix_unitaire, montant_ht, prestations (nom)`)
         .eq('devis_id', quote.id);
 
       const emailItems = (lignesData || []).map((row: { description?: string; quantite?: number; prix_unitaire?: number; montant_ht?: number; prestations?: { nom?: string } | null }) => ({
@@ -243,7 +298,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       setClientEmail('');
       alert('Devis envoyé par email avec succès.');
     } catch (err) {
-      setEmailError(err instanceof Error ? err.message : 'Erreur lors de l\'envoi.');
+      setEmailError(err instanceof Error ? err.message : "Erreur lors de l'envoi.");
     } finally {
       setSendingEmail(false);
     }
@@ -262,6 +317,18 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
 
   return (
     <div className="min-h-screen bg-gray-50">
+
+      {/* ── Toast de confirmation ──────────────────────────────────────────── */}
+      {toast && (
+        <div
+          className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl font-bold text-sm text-white transition-all ${
+            toast.ok ? 'bg-green-500' : 'bg-red-500'
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
+
       <header className="bg-blue-600 text-white shadow-lg">
         <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center">
@@ -294,6 +361,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                 Référence : {quote.numero ?? quote.id?.slice(0, 8).toUpperCase() ?? '-'}
               </p>
             </div>
+
             <div className="text-right">
               <p className="text-sm text-gray-600 mb-1">Statut</p>
 
@@ -315,14 +383,16 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                 </div>
               )}
 
-              {/* Statut : envoyé — avec bouton Retour */}
+              {/* Statut : envoyé */}
               {status === 'envoyé' && (
                 <div className="flex flex-wrap gap-2 justify-end">
+                  {/* ✅ Ce bouton génère maintenant la facture */}
                   <button
-                    onClick={() => updateStatus('accepté')}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition"
+                    onClick={handleAcceptQuote}
+                    disabled={acceptLoading}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50"
                   >
-                    Accepté
+                    {acceptLoading ? 'Génération...' : 'Accepté'}
                   </button>
                   <button
                     onClick={() => updateStatus('refusé')}
@@ -339,11 +409,18 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                 </div>
               )}
 
+              {/* Statut : accepté ou refusé */}
               {(status === 'accepté' || status === 'refusé') && (
                 <div className="flex flex-col items-end gap-2">
                   {!showStatusEdit ? (
                     <div className="flex items-center gap-2">
-                      <span className={`inline-block px-4 py-2 rounded-lg font-semibold ${status === 'accepté' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      <span
+                        className={`inline-block px-4 py-2 rounded-lg font-semibold ${
+                          status === 'accepté'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        }`}
+                      >
                         {status === 'accepté' ? 'Accepté' : 'Refusé'}
                       </span>
                       <button
@@ -361,11 +438,13 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                       >
                         Brouillon
                       </button>
+                      {/* ✅ Ce bouton génère aussi la facture si elle n'existe pas encore */}
                       <button
-                        onClick={() => { updateStatus('accepté'); setShowStatusEdit(false); }}
-                        className="px-3 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition text-sm"
+                        onClick={handleAcceptQuote}
+                        disabled={acceptLoading}
+                        className="px-3 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition text-sm disabled:opacity-50"
                       >
-                        Accepté
+                        {acceptLoading ? '...' : 'Accepté'}
                       </button>
                       <button
                         onClick={() => { updateStatus('refusé'); setShowStatusEdit(false); }}
@@ -401,9 +480,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                   {plombier.prenom || ''} {plombier.nom || ''}
                 </p>
                 <p className="text-gray-600">{plombier.adresse || ''}</p>
-                <p className="text-gray-600 mt-1">
-                  SIRET : {plombier.siret || ''}
-                </p>
+                <p className="text-gray-600 mt-1">SIRET : {plombier.siret || ''}</p>
               </div>
             </div>
           )}
@@ -438,9 +515,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                       <td className="px-4 py-3 text-right text-gray-600">
                         {item.prix_unitaire.toFixed(2)} €
                       </td>
-                      <td className="px-4 py-3 text-right text-gray-600">
-                        {item.quantite}
-                      </td>
+                      <td className="px-4 py-3 text-right text-gray-600">{item.quantite}</td>
                       <td className="px-4 py-3 text-right font-semibold text-gray-800">
                         {item.montant_ht.toFixed(2)} €
                       </td>
@@ -484,8 +559,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
           <div className="quote-legal mt-6 pt-4 border-t text-center text-xs text-gray-500">
             <p>Devis valable 30 jours à compter de la date d'émission</p>
             <p className="mt-1">
-              TVA au taux de 10% applicable pour les travaux de rénovation (article 279-0 bis du
-              CGI)
+              TVA au taux de 10% applicable pour les travaux de rénovation (article 279-0 bis du CGI)
             </p>
           </div>
         </div>
@@ -513,7 +587,9 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
 
           {showEmailForm && (
             <div className="bg-white border border-gray-200 rounded-lg shadow-md p-6 max-w-md mx-auto text-left">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">Envoyer le devis par email</h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">
+                Envoyer le devis par email
+              </h3>
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Email du client
@@ -558,13 +634,14 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
         </div>
       </main>
 
-      {/* 🔹 Modal de confirmation annulation du devis */}
+      {/* ── Modal annulation du devis ──────────────────────────────────────── */}
       {showCancelConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
             <h3 className="text-lg font-semibold text-gray-800 mb-2">Annuler ce devis ?</h3>
             <p className="text-gray-500 text-sm mb-6">
-              Le devis sera marqué comme <strong className="text-red-600">refusé</strong>. Cette action peut être difficile à annuler.
+              Le devis sera marqué comme{' '}
+              <strong className="text-red-600">refusé</strong>. Cette action peut être difficile à annuler.
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -587,48 +664,26 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       <style>
         {`
           @media print {
-            @page {
-              size: A4;
-              margin: 12mm;
-            }
-            header, button {
-              display: none !important;
-            }
-            body {
-              background: white !important;
-            }
-            .quote-main {
-              padding: 0 1rem !important;
-            }
+            @page { size: A4; margin: 12mm; }
+            header, button { display: none !important; }
+            body { background: white !important; }
+            .quote-main { padding: 0 1rem !important; }
             .quote-content {
               box-shadow: none !important;
               padding: 0 !important;
               margin: 0 !important;
               page-break-inside: avoid;
             }
-            .quote-content [class*="mb-8"] {
-              margin-bottom: 10px !important;
-            }
-            .quote-content [class*="mb-4"] {
-              margin-bottom: 6px !important;
-            }
-            .quote-content [class*="mb-3"] {
-              margin-bottom: 4px !important;
-            }
-            .quote-content [class*="mb-2"] {
-              margin-bottom: 2px !important;
-            }
-            .quote-content [class*="py-3"] {
-              padding-top: 4px !important;
-              padding-bottom: 4px !important;
-            }
+            .quote-content [class*="mb-8"] { margin-bottom: 10px !important; }
+            .quote-content [class*="mb-4"] { margin-bottom: 6px !important; }
+            .quote-content [class*="mb-3"] { margin-bottom: 4px !important; }
+            .quote-content [class*="mb-2"] { margin-bottom: 2px !important; }
+            .quote-content [class*="py-3"] { padding-top: 4px !important; padding-bottom: 4px !important; }
             .quote-content [class*="py-6"], .quote-content [class*="pt-6"], .quote-content [class*="pb-6"] {
               padding-top: 6px !important;
               padding-bottom: 6px !important;
             }
-            .quote-content table {
-              font-size: 11px;
-            }
+            .quote-content table { font-size: 11px; }
             .quote-legal {
               margin-top: 6px !important;
               padding-top: 4px !important;
