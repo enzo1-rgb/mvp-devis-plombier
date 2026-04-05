@@ -5,12 +5,14 @@ import Auth from "./components/Auth";
 import Dashboard from "./components/Dashboard";
 import QuoteForm from "./components/QuoteForm";
 import QuotePreview from "./components/QuotePreview";
+import InvoicePreview from "./components/InvoicePreview";
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [currentView, setCurrentView] = useState<"dashboard" | "create" | "preview">("dashboard");
+  const [currentView, setCurrentView] = useState<"dashboard" | "create" | "preview" | "invoice">("dashboard");
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -40,9 +42,15 @@ export default function App() {
     setCurrentView("preview");
   };
 
+  const handleViewInvoice = (invoice: any) => {
+    setSelectedInvoice(invoice);
+    setCurrentView("invoice");
+  };
+
   const handleBackToDashboard = () => {
     setCurrentView("dashboard");
     setSelectedQuote(null);
+    setSelectedInvoice(null);
   };
 
   const handleQuoteCreated = () => {
@@ -61,6 +69,7 @@ export default function App() {
           onCreateQuote={handleCreateQuote}
           onViewQuote={handleViewQuote}
           onEditQuote={handleEditQuote}
+          onViewInvoice={handleViewInvoice}
         />
       )}
 
@@ -74,6 +83,10 @@ export default function App() {
 
       {currentView === "preview" && selectedQuote && (
         <QuotePreview quote={selectedQuote} onBack={handleBackToDashboard} />
+      )}
+
+      {currentView === "invoice" && selectedInvoice && (
+        <InvoicePreview invoice={selectedInvoice} onBack={handleBackToDashboard} />
       )}
     </>
   );

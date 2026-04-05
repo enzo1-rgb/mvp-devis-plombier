@@ -49,6 +49,7 @@ interface DashboardProps {
   onCreateQuote: () => void;
   onViewQuote: (quote: Quote) => void;
   onEditQuote: (quote: Quote) => void;
+  onViewInvoice: (invoice: any) => void; // 👈 nouveau
 }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
@@ -58,6 +59,7 @@ export default function Dashboard({
   onCreateQuote,
   onViewQuote,
   onEditQuote,
+  onViewInvoice, // 👈 nouveau
 }: DashboardProps) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -68,18 +70,14 @@ export default function Dashboard({
   const [search, setSearch] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null);
-  // Toast de confirmation
   const [toast, setToast] = useState<{ message: string; ok: boolean } | null>(null);
-  // ID du devis en cours de traitement (pour désactiver le bouton)
   const [acceptLoading, setAcceptLoading] = useState<string | null>(null);
 
-  // ── Chargement des données selon le mode actif ──────────────────────────────
   useEffect(() => {
     loadData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode]);
 
-  // ── Auto-fermeture du toast après 3,5 s ─────────────────────────────────────
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3500);
@@ -110,11 +108,9 @@ export default function Dashboard({
     setLoading(false);
   };
 
-  // ── Accepter un devis → générer une facture dans Supabase ───────────────────
   const handleAcceptQuote = async (quote: Quote) => {
-    setAcceptLoading(quote.id);
+    setAcceptLoading(quote.id ?? null);
     try {
-      // 1. Vérifier qu'une facture n'existe pas déjà pour ce devis
       const { data: existing } = await supabase
         .from("factures")
         .select("id")
@@ -127,19 +123,14 @@ export default function Dashboard({
         return;
       }
 
-      // 2. Passer le devis en statut "accepté"
       const { error: updateError } = await supabase
         .from("devis")
         .update({ statut: "accepté" })
         .eq("id", quote.id);
       if (updateError) throw updateError;
 
-      // 3. Générer le numéro de facture
-      const numFacture = `FACT-${new Date().getFullYear()}-${Math.floor(
-        1000 + Math.random() * 9000
-      )}`;
+      const numFacture = `FACT-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-      // 4. Insérer la facture dans Supabase
       const { error: insertError } = await supabase.from("factures").insert({
         plombier_id: user.id,
         devis_id: quote.id,
@@ -152,9 +143,8 @@ export default function Dashboard({
       });
       if (insertError) throw insertError;
 
-      // 5. Afficher le toast et basculer vers les factures
       setToast({ message: `Facture ${numFacture} générée !`, ok: true });
-      setViewMode("factures"); // déclenche loadData() via l'effet [viewMode]
+      setViewMode("factures");
     } catch (err) {
       console.error(err);
       setToast({ message: "Erreur lors de la création de la facture.", ok: false });
@@ -163,7 +153,6 @@ export default function Dashboard({
     }
   };
 
-  // ── Suppression d'un devis ───────────────────────────────────────────────────
   const confirmDelete = async () => {
     if (!quoteToDelete) return;
     const { error } = await supabase
@@ -176,7 +165,6 @@ export default function Dashboard({
     }
   };
 
-  // ── Rendus conditionnels (sous-pages) ───────────────────────────────────────
   if (showProfile) return <Profile user={user} onBack={() => setShowProfile(false)} />;
   if (showPrestations) return <Prestations user={user} onBack={() => setShowPrestations(false)} />;
 
@@ -189,11 +177,9 @@ export default function Dashboard({
       (inv.numero_facture ?? "").toLowerCase().includes(search.toLowerCase())
   );
 
-  // ── Rendu principal ─────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen pb-28 bg-slate-50 font-sans">
 
-      {/* ── Toast de confirmation (position fixe, ne perturbe pas le layout) ── */}
       {toast && (
         <div
           className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl font-bold text-sm text-white transition-all ${
@@ -204,10 +190,8 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
       <header className="bg-slate-900 text-white sticky top-0 z-30 shadow-lg h-16 flex items-center">
         <div className="max-w-2xl mx-auto px-4 w-full flex justify-between items-center">
-          {/* Logo */}
           <div
             className="flex items-center gap-2 cursor-pointer"
             onClick={() => setViewMode("devis")}
@@ -218,12 +202,9 @@ export default function Dashboard({
             <span className="font-bold">ProPlomb</span>
           </div>
 
-          {/* Navigation */}
           <nav className="flex items-center gap-1.5">
             <button
-              onClick={() =>
-                setViewMode(viewMode === "devis" ? "factures" : "devis")
-              }
+              onClick={() => setViewMode(viewMode === "devis" ? "factures" : "devis")}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all ${
                 viewMode === "factures"
                   ? "bg-purple-600 text-white shadow-md"
@@ -235,36 +216,24 @@ export default function Dashboard({
                 Factures
               </span>
             </button>
-
-            <button
-              onClick={() => setShowPrestations(true)}
-              className="p-2 text-slate-400 hover:text-white"
-            >
+            <button onClick={() => setShowPrestations(true)} className="p-2 text-slate-400 hover:text-white">
               <Wrench className="w-5 h-5" />
             </button>
-            <button
-              onClick={() => setShowProfile(true)}
-              className="p-2 text-slate-400 hover:text-white"
-            >
+            <button onClick={() => setShowProfile(true)} className="p-2 text-slate-400 hover:text-white">
               <User className="w-5 h-5" />
             </button>
-            <button
-              onClick={() => setShowLogoutConfirm(true)}
-              className="p-2 text-slate-600 hover:text-red-400"
-            >
+            <button onClick={() => setShowLogoutConfirm(true)} className="p-2 text-slate-600 hover:text-red-400">
               <LogOut className="w-5 h-5" />
             </button>
           </nav>
         </div>
       </header>
 
-      {/* ── Contenu principal ──────────────────────────────────────────────── */}
       <main className="max-w-2xl mx-auto px-4 pt-6">
         <h1 className="text-2xl font-black text-slate-900 mb-6">
           {viewMode === "devis" ? "Mes Devis" : "Mes Factures"}
         </h1>
 
-        {/* Barre de recherche */}
         <div className="relative mb-6">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -279,12 +248,10 @@ export default function Dashboard({
           />
         </div>
 
-        {/* Liste */}
         <div className="space-y-4">
           {loading ? (
             <div className="text-center py-12 text-slate-400">Chargement…</div>
           ) : viewMode === "devis" ? (
-            /* ── Liste des devis ── */
             filteredQuotes.length === 0 ? (
               <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200">
                 <p className="text-slate-400 font-medium">Aucun devis trouvé</p>
@@ -400,6 +367,16 @@ export default function Dashboard({
                       </span>
                     </div>
                   </div>
+
+                  {/* 👇 Bouton Voir ajouté ici */}
+                  <div className="flex border-t border-slate-50 bg-slate-50/30">
+                    <button
+                      onClick={() => onViewInvoice(inv)}
+                      className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-purple-600 transition"
+                    >
+                      <Eye className="w-4 h-4" /> Voir la facture
+                    </button>
+                  </div>
                 </div>
               ))
             )
@@ -407,14 +384,12 @@ export default function Dashboard({
         </div>
       </main>
 
-      {/* ── FAB : uniquement visible en mode "devis" ────────────────────────── */}
       {viewMode === "devis" && (
         <button className="fab" onClick={onCreateQuote}>
           <Plus className="w-8 h-8 stroke-[3]" />
         </button>
       )}
 
-      {/* ── Modal suppression devis ─────────────────────────────────────────── */}
       {quoteToDelete && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-6">
           <div className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl text-center">
@@ -446,7 +421,6 @@ export default function Dashboard({
         </div>
       )}
 
-      {/* ── Modal déconnexion ───────────────────────────────────────────────── */}
       {showLogoutConfirm && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-6">
           <div className="bg-white rounded-3xl p-8 w-full max-w-sm shadow-2xl text-center">
