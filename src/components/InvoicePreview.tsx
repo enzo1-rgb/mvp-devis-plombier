@@ -207,7 +207,7 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
         </div>
       )}
 
-      {/* Header mobile-friendly */}
+      {/* Header */}
       <header className="bg-purple-700 text-white shadow-lg print:hidden">
         <div className="max-w-5xl mx-auto px-4 py-4">
 
@@ -225,12 +225,12 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
             </div>
           </div>
 
-          {/* Ligne 2 : boutons */}
-          <div className="flex gap-2 flex-wrap">
+          {/* Ligne 2 : boutons — pleine largeur mobile, alignés à droite desktop */}
+          <div className="flex gap-2 flex-wrap sm:justify-end">
             <button
               onClick={togglePayment}
               disabled={toggling}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold text-xs transition disabled:opacity-50 flex-1 justify-center ${
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold text-xs transition disabled:opacity-50 flex-1 sm:flex-none justify-center ${
                 statut === 'payée'
                   ? 'bg-green-500 text-white hover:bg-green-600'
                   : 'bg-white text-purple-700 hover:bg-purple-50'
@@ -242,14 +242,14 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
 
             <button
               onClick={() => setShowEmailForm(!showEmailForm)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 text-white rounded-lg font-semibold text-xs hover:bg-emerald-600 transition flex-1 justify-center"
+              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 text-white rounded-lg font-semibold text-xs hover:bg-emerald-600 transition flex-1 sm:flex-none justify-center"
             >
               <Mail className="w-4 h-4 flex-shrink-0" /> Email
             </button>
 
             <button
               onClick={() => window.print()}
-              className="flex items-center gap-1.5 px-3 py-2 bg-white/20 text-white rounded-lg font-semibold text-xs hover:bg-white/30 transition flex-1 justify-center"
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/20 text-white rounded-lg font-semibold text-xs hover:bg-white/30 transition flex-1 sm:flex-none justify-center"
             >
               <Printer className="w-4 h-4 flex-shrink-0" /> Imprimer
             </button>
