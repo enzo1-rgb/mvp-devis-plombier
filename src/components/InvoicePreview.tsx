@@ -45,6 +45,12 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
   const [emailError, setEmailError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; ok: boolean } | null>(null);
 
+  // Taux TVA déduit depuis les montants stockés (fallback 10%)
+  const tvaTaux = invoice.montant_ht > 0
+    ? Math.round((invoice.tva / invoice.montant_ht) * 1000) / 1000
+    : 0.10;
+  const tvaPct = (tvaTaux * 100).toFixed(1);
+
   useEffect(() => {
     loadAll();
   }, [invoice.id]);
@@ -156,7 +162,7 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
           </table>
           <div style="border-top:2px solid #7c3aed;padding-top:15px;text-align:right">
             <p>Total HT : <strong>${Number(invoice.montant_ht).toFixed(2)} €</strong></p>
-            <p>TVA (10%) : <strong>${Number(invoice.tva).toFixed(2)} €</strong></p>
+            <p>TVA (${tvaPct}%) : <strong>${Number(invoice.tva).toFixed(2)} €</strong></p>
             <p style="font-size:20px;color:#7c3aed">Total TTC : <strong>${Number(invoice.montant_ttc).toFixed(2)} €</strong></p>
           </div>
         </div>`;
@@ -196,27 +202,16 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* Toast */}
       {toast && (
-        <div
-          className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl font-bold text-sm text-white ${
-            toast.ok ? 'bg-green-500' : 'bg-red-500'
-          }`}
-        >
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl font-bold text-sm text-white ${toast.ok ? 'bg-green-500' : 'bg-red-500'}`}>
           {toast.message}
         </div>
       )}
 
-      {/* Header */}
       <header className="bg-purple-700 text-white shadow-lg print:hidden">
         <div className="max-w-5xl mx-auto px-4 py-4">
-
-          {/* Ligne 1 : retour + titre */}
           <div className="flex items-center gap-3 mb-3">
-            <button
-              onClick={onBack}
-              className="p-2 hover:bg-purple-800 rounded-lg transition flex-shrink-0"
-            >
+            <button onClick={onBack} className="p-2 hover:bg-purple-800 rounded-lg transition flex-shrink-0">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">
@@ -225,7 +220,6 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
             </div>
           </div>
 
-          {/* Ligne 2 : boutons — pleine largeur mobile, alignés à droite desktop */}
           <div className="flex gap-2 flex-wrap sm:justify-end">
             <button
               onClick={togglePayment}
@@ -257,7 +251,6 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
         </div>
       </header>
 
-      {/* Formulaire email */}
       {showEmailForm && (
         <div className="max-w-5xl mx-auto px-4 pt-4 print:hidden">
           <div className="bg-white border border-purple-200 rounded-2xl p-5 shadow-md">
@@ -283,116 +276,87 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
         </div>
       )}
 
-      <main className="max-w-5xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-lg p-6 sm:p-8 mb-6">
+      {/* Contenu facture */}
+      <div className="max-w-5xl mx-auto px-4 py-6">
+        <div className="bg-white rounded-2xl shadow-md p-8">
 
-          {/* En-tête facture */}
-          <div className="flex justify-between items-start mb-8 pb-6 border-b-2 border-purple-600">
+          <div className="flex justify-between items-start mb-8 pb-6 border-b-2 border-purple-100">
             <div>
               <h2 className="text-3xl font-bold text-purple-700 mb-2">FACTURE</h2>
-              <p className="text-gray-600 font-mono text-sm">{invoice.numero_facture}</p>
-              <p className="text-gray-600 text-sm">
-                Date :{' '}
-                {new Date(invoice.date_emission || invoice.created_at).toLocaleDateString('fr-FR')}
+              <p className="text-gray-500 font-mono text-sm">{invoice.numero_facture}</p>
+              <p className="text-gray-500 text-sm mt-1">
+                Date : {new Date(invoice.date_emission || invoice.created_at).toLocaleDateString('fr-FR')}
               </p>
             </div>
-            <span
-              className={`px-3 py-1.5 rounded-lg font-bold text-xs ${
-                statut === 'payée'
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-amber-100 text-amber-700'
-              }`}
-            >
-              {statut === 'payée' ? '✓ Payée' : 'En attente'}
+            <span className={`px-4 py-2 rounded-xl font-bold text-sm ${statut === 'payée' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+              {statut === 'payée' ? 'Payée' : 'Non payée'}
             </span>
           </div>
 
-          {/* Émetteur */}
           {plombier && (
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">Émetteur</h3>
-              <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-600">
-                {plombier.nom_entreprise && (
-                  <p className="font-bold text-gray-800 text-lg">{plombier.nom_entreprise}</p>
-                )}
-                <p className="font-semibold text-gray-800">
-                  {plombier.prenom} {plombier.nom}
-                </p>
-                <p className="text-gray-600">{plombier.adresse}</p>
-                <p className="text-gray-600">SIRET : {plombier.siret}</p>
+            <div className="mb-6">
+              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Émetteur</h3>
+              <div className="bg-purple-50 p-4 rounded-xl border-l-4 border-purple-600">
+                {plombier.nom_entreprise && <p className="font-bold text-gray-800">{plombier.nom_entreprise}</p>}
+                <p className="font-semibold text-gray-700">{plombier.prenom || ''} {plombier.nom || ''}</p>
+                <p className="text-gray-500 text-sm">{plombier.adresse || ''}</p>
+                <p className="text-gray-500 text-sm">SIRET : {plombier.siret || ''}</p>
               </div>
             </div>
           )}
 
-          {/* Client */}
-          <div className="mb-8">
-            <h3 className="text-lg font-semibold text-gray-800 mb-3">Facturé à</h3>
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="font-bold text-gray-800 text-lg">{clientName}</p>
-              {clientAddr && <p className="text-gray-600">{clientAddr}</p>}
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Client</h3>
+            <div className="bg-gray-50 p-4 rounded-xl">
+              <p className="font-semibold text-gray-800">{clientName}</p>
+              {clientAddr && <p className="text-gray-500 text-sm">{clientAddr}</p>}
             </div>
           </div>
 
-          {/* Tableau des prestations */}
-          {lignes.length > 0 && (
-            <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Détail des prestations</h3>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="bg-purple-700 text-white">
-                      <th className="px-4 py-3 text-left rounded-tl-lg">Prestation</th>
-                      <th className="px-4 py-3 text-right">Prix unitaire</th>
-                      <th className="px-4 py-3 text-right">Quantité</th>
-                      <th className="px-4 py-3 text-right rounded-tr-lg">Total HT</th>
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Prestations</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-purple-700 text-white">
+                    <th className="px-4 py-3 text-left rounded-tl-lg">Prestation</th>
+                    <th className="px-4 py-3 text-right">P.U.</th>
+                    <th className="px-4 py-3 text-right">Qté</th>
+                    <th className="px-4 py-3 text-right rounded-tr-lg">Total HT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lignes.map((l, i) => (
+                    <tr key={l.id} className={i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
+                      <td className="px-4 py-3 text-gray-800">{l.description}</td>
+                      <td className="px-4 py-3 text-right text-gray-600">{l.prix_unitaire.toFixed(2)} €</td>
+                      <td className="px-4 py-3 text-right text-gray-600">{l.quantite}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-gray-800">{l.montant_ht.toFixed(2)} €</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {lignes.map((l, i) => (
-                      <tr key={l.id} className={i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                        <td className="px-4 py-3 text-gray-800">{l.description}</td>
-                        <td className="px-4 py-3 text-right text-gray-600">
-                          {l.prix_unitaire.toFixed(2)} €
-                        </td>
-                        <td className="px-4 py-3 text-right text-gray-600">{l.quantite}</td>
-                        <td className="px-4 py-3 text-right font-semibold">
-                          {l.montant_ht.toFixed(2)} €
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {/* Totaux */}
-          <div className="border-t-2 border-purple-600 pt-6">
-            <div className="flex justify-end">
-              <div className="w-full sm:w-80 space-y-3">
-                <div className="flex justify-between text-lg">
-                  <span className="text-gray-700">Total HT</span>
-                  <span className="font-semibold">{Number(invoice.montant_ht).toFixed(2)} €</span>
-                </div>
-                <div className="flex justify-between text-lg">
-                  <span className="text-gray-700">TVA (10%)</span>
-                  <span className="font-semibold">{Number(invoice.tva).toFixed(2)} €</span>
-                </div>
-                <div className="border-t-2 border-purple-600 pt-3 flex justify-between text-2xl">
-                  <span className="text-purple-700 font-bold">Total TTC</span>
-                  <span className="text-purple-700 font-bold">
-                    {Number(invoice.montant_ttc).toFixed(2)} €
-                  </span>
-                </div>
-              </div>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <div className="mt-8 pt-4 border-t text-center text-xs text-gray-400">
-            <p>Payable à réception — TVA 10% applicable aux travaux de rénovation (art. 279-0 bis CGI)</p>
+          <div className="flex justify-end">
+            <div className="w-full sm:w-80 space-y-2">
+              <div className="flex justify-between text-gray-600">
+                <span>Total HT</span>
+                <span className="font-semibold">{Number(invoice.montant_ht).toFixed(2)} €</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>TVA ({tvaPct}%)</span>
+                <span className="font-semibold">{Number(invoice.tva).toFixed(2)} €</span>
+              </div>
+              <div className="border-t-2 border-purple-600 pt-3 flex justify-between text-xl">
+                <span className="text-purple-700 font-bold">Total TTC</span>
+                <span className="text-purple-700 font-bold">{Number(invoice.montant_ttc).toFixed(2)} €</span>
+              </div>
+            </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

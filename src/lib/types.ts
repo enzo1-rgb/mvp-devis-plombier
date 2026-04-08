@@ -53,6 +53,7 @@ export interface Devis {
   date_validite?: string;
   montant_ht: number;
   tva: number;
+  tva_rate: number;
   montant_ttc: number;
   notes?: string;
   created_at?: string;
@@ -70,6 +71,7 @@ export interface Quote {
   date_emission?: string;
   total_ht: number;
   tva: number;
+  tva_rate: number;
   total_ttc: number;
   notes?: string;
   created_at?: string;

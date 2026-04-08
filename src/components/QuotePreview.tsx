@@ -27,10 +27,11 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
   const [emailError, setEmailError] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showStatusEdit, setShowStatusEdit] = useState(false);
-
-  // Toast de confirmation pour la génération de facture
   const [toast, setToast] = useState<{ message: string; ok: boolean } | null>(null);
   const [acceptLoading, setAcceptLoading] = useState(false);
+
+  const tvaTaux = quote.tva_rate ?? 0.10;
+  const tvaPct = (tvaTaux * 100).toFixed(1);
 
   useEffect(() => {
     loadData();
@@ -53,13 +54,11 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData.session?.user?.id;
       if (!userId) return;
-
       const { data, error } = await supabase
         .from('plombiers')
         .select('id, nom, prenom, adresse, siret, nom_entreprise')
         .eq('id', userId)
         .single();
-
       if (error) throw error;
       setPlombier(data as Plombier);
     } catch (error) {
@@ -74,7 +73,6 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
         .from('lignes_devis')
         .select('id, description, quantite, prix_unitaire, montant_ht')
         .eq('devis_id', quote.id);
-
       if (error) throw error;
       setItems(
         (data || []).map((r: LigneDevisRow) => ({
@@ -90,7 +88,6 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
     }
   };
 
-  // ── Met à jour uniquement le statut (sans générer de facture) ───────────────
   const updateStatus = async (newStatus: Quote['status']) => {
     if (!quote.id) return;
     try {
@@ -98,7 +95,6 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
         .from('devis')
         .update({ statut: newStatus })
         .eq('id', quote.id);
-
       if (error) throw error;
       setStatus(newStatus);
     } catch (error) {
@@ -106,7 +102,6 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
     }
   };
 
-  // ── Accepte le devis ET génère la facture dans Supabase ─────────────────────
   const handleAcceptQuote = async () => {
     setAcceptLoading(true);
     try {
@@ -114,14 +109,12 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       const userId = sessionData.session?.user?.id;
       if (!userId) throw new Error('Non authentifié');
 
-      // 1. Vérifier qu'une facture n'existe pas déjà pour ce devis
       const { data: existing } = await supabase
         .from('factures')
         .select('id')
         .eq('devis_id', quote.id)
         .maybeSingle();
 
-      // 2. Mettre le devis en "accepté" dans tous les cas
       await updateStatus('accepté');
       setShowStatusEdit(false);
 
@@ -130,12 +123,10 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
         return;
       }
 
-      // 3. Générer le numéro de facture
       const numFacture = `FACT-${new Date().getFullYear()}-${Math.floor(
         1000 + Math.random() * 9000
       )}`;
 
-      // 4. Insérer la facture dans Supabase
       const { error: insertError } = await supabase.from('factures').insert({
         plombier_id: userId,
         devis_id: quote.id,
@@ -143,12 +134,12 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
         numero_facture: numFacture,
         montant_ht: quote.total_ht,
         tva: quote.tva,
+        tva_rate: tvaTaux,
         montant_ttc: quote.total_ttc,
         statut: 'non_payée',
       });
 
       if (insertError) throw insertError;
-
       setToast({ message: `Facture ${numFacture} générée !`, ok: true });
     } catch (err) {
       console.error(err);
@@ -163,8 +154,12 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
     await updateStatus('refusé');
   };
 
-  const getTVA = () => {
-    return quote.total_ht * 0.1;
+  const getTVA = () => quote.total_ht * tvaTaux;
+
+  const getMentionLegale = () => {
+    if (tvaTaux === 0.055) return "TVA au taux de 5,5% applicable pour les travaux d'amélioration énergétique";
+    if (tvaTaux === 0.20) return 'TVA au taux de 20% applicable pour les constructions neuves';
+    return 'TVA au taux de 10% applicable pour les travaux de rénovation (art. 279-0 bis CGI)';
   };
 
   const buildEmailHtml = (
@@ -226,11 +221,11 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
 
         <div style="border-top: 2px solid #2563eb; padding-top: 15px; margin-top: 20px;">
           <p style="margin: 5px 0;"><span style="color: #4b5563;">Total HT :</span> <strong>${quote.total_ht.toFixed(2)} €</strong></p>
-          <p style="margin: 5px 0;"><span style="color: #4b5563;">TVA (10%) :</span> <strong>${getTVA().toFixed(2)} €</strong></p>
+          <p style="margin: 5px 0;"><span style="color: #4b5563;">TVA (${tvaPct}%) :</span> <strong>${getTVA().toFixed(2)} €</strong></p>
           <p style="margin: 15px 0 5px 0; font-size: 18px;"><span style="color: #2563eb; font-weight: bold;">Total TTC :</span> <strong>${quote.total_ttc.toFixed(2)} €</strong></p>
         </div>
 
-        <p style="margin-top: 30px; font-size: 12px; color: #9ca3af; text-align: center;">Devis valable 30 jours à compter de la date d'émission. TVA au taux de 10% applicable pour les travaux de rénovation.</p>
+        <p style="margin-top: 30px; font-size: 12px; color: #9ca3af; text-align: center;">Devis valable 30 jours à compter de la date d'émission. ${getMentionLegale()}.</p>
       </div>
     `;
   };
@@ -288,10 +283,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       });
 
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || `Erreur ${res.status}`);
-      }
+      if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
 
       await updateStatus('envoyé');
       setShowEmailForm(false);
@@ -318,13 +310,8 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* ── Toast de confirmation ──────────────────────────────────────────── */}
       {toast && (
-        <div
-          className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl font-bold text-sm text-white transition-all ${
-            toast.ok ? 'bg-green-500' : 'bg-red-500'
-          }`}
-        >
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl font-bold text-sm text-white transition-all ${toast.ok ? 'bg-green-500' : 'bg-red-500'}`}>
           {toast.message}
         </div>
       )}
@@ -332,10 +319,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       <header className="bg-blue-600 text-white shadow-lg">
         <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center">
-            <button
-              onClick={onBack}
-              className="mr-4 p-2 hover:bg-blue-700 rounded-lg transition"
-            >
+            <button onClick={onBack} className="mr-4 p-2 hover:bg-blue-700 rounded-lg transition">
               <ArrowLeft className="w-6 h-6" />
             </button>
             <FileText className="w-8 h-8 mr-3" />
@@ -346,6 +330,8 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
 
       <main className="quote-main max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="quote-content bg-white rounded-lg shadow-lg p-8 mb-6">
+
+          {/* En-tête devis + statut */}
           <div className="flex justify-between items-start mb-8 pb-6 border-b-2">
             <div>
               <h2 className="text-3xl font-bold text-blue-600 mb-2">DEVIS</h2>
@@ -365,7 +351,6 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             <div className="text-right">
               <p className="text-sm text-gray-600 mb-1">Statut</p>
 
-              {/* Statut : brouillon */}
               {status === 'brouillon' && (
                 <div className="flex flex-wrap gap-2 justify-end">
                   <button
@@ -383,10 +368,8 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                 </div>
               )}
 
-              {/* Statut : envoyé */}
               {status === 'envoyé' && (
                 <div className="flex flex-wrap gap-2 justify-end">
-                  {/* ✅ Ce bouton génère maintenant la facture */}
                   <button
                     onClick={handleAcceptQuote}
                     disabled={acceptLoading}
@@ -409,18 +392,11 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                 </div>
               )}
 
-              {/* Statut : accepté ou refusé */}
               {(status === 'accepté' || status === 'refusé') && (
                 <div className="flex flex-col items-end gap-2">
                   {!showStatusEdit ? (
                     <div className="flex items-center gap-2">
-                      <span
-                        className={`inline-block px-4 py-2 rounded-lg font-semibold ${
-                          status === 'accepté'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}
-                      >
+                      <span className={`inline-block px-4 py-2 rounded-lg font-semibold ${status === 'accepté' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                         {status === 'accepté' ? 'Accepté' : 'Refusé'}
                       </span>
                       <button
@@ -438,7 +414,6 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                       >
                         Brouillon
                       </button>
-                      {/* ✅ Ce bouton génère aussi la facture si elle n'existe pas encore */}
                       <button
                         onClick={handleAcceptQuote}
                         disabled={acceptLoading}
@@ -465,16 +440,13 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             </div>
           </div>
 
+          {/* Émetteur */}
           {plombier && (
             <div className="mb-8">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                Émetteur du devis
-              </h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Émetteur du devis</h3>
               <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
                 {plombier.nom_entreprise && (
-                  <p className="font-semibold text-gray-800 text-lg">
-                    {plombier.nom_entreprise}
-                  </p>
+                  <p className="font-semibold text-gray-800 text-lg">{plombier.nom_entreprise}</p>
                 )}
                 <p className="font-semibold text-gray-800 text-lg">
                   {plombier.prenom || ''} {plombier.nom || ''}
@@ -485,6 +457,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             </div>
           )}
 
+          {/* Client */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-gray-800 mb-3">Informations Client</h3>
             <div className="bg-gray-50 p-4 rounded-lg">
@@ -493,6 +466,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             </div>
           </div>
 
+          {/* Prestations */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Détail des Prestations</h3>
             <div className="overflow-x-auto">
@@ -507,18 +481,11 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                 </thead>
                 <tbody>
                   {items.map((item, index) => (
-                    <tr
-                      key={item.id ?? index}
-                      className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}
-                    >
+                    <tr key={item.id ?? index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
                       <td className="px-4 py-3 text-gray-800">{item.description}</td>
-                      <td className="px-4 py-3 text-right text-gray-600">
-                        {item.prix_unitaire.toFixed(2)} €
-                      </td>
+                      <td className="px-4 py-3 text-right text-gray-600">{item.prix_unitaire.toFixed(2)} €</td>
                       <td className="px-4 py-3 text-right text-gray-600">{item.quantite}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-gray-800">
-                        {item.montant_ht.toFixed(2)} €
-                      </td>
+                      <td className="px-4 py-3 text-right font-semibold text-gray-800">{item.montant_ht.toFixed(2)} €</td>
                     </tr>
                   ))}
                 </tbody>
@@ -526,6 +493,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             </div>
           </div>
 
+          {/* Notes */}
           {quote.notes && (
             <div className="mb-8">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">Notes</h3>
@@ -535,6 +503,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             </div>
           )}
 
+          {/* Totaux */}
           <div className="border-t-2 pt-6">
             <div className="flex justify-end">
               <div className="w-full sm:w-96 space-y-3">
@@ -543,27 +512,25 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                   <span className="font-semibold">{quote.total_ht.toFixed(2)} €</span>
                 </div>
                 <div className="flex justify-between text-lg">
-                  <span className="text-gray-700">TVA (10%)</span>
+                  <span className="text-gray-700">TVA ({tvaPct}%)</span>
                   <span className="font-semibold">{getTVA().toFixed(2)} €</span>
                 </div>
                 <div className="border-t-2 border-blue-600 pt-3 flex justify-between text-2xl">
                   <span className="text-blue-700 font-bold">Total TTC</span>
-                  <span className="text-blue-700 font-bold">
-                    {quote.total_ttc.toFixed(2)} €
-                  </span>
+                  <span className="text-blue-700 font-bold">{quote.total_ttc.toFixed(2)} €</span>
                 </div>
               </div>
             </div>
           </div>
 
+          {/* Mention légale */}
           <div className="quote-legal mt-6 pt-4 border-t text-center text-xs text-gray-500">
             <p>Devis valable 30 jours à compter de la date d'émission</p>
-            <p className="mt-1">
-              TVA au taux de 10% applicable pour les travaux de rénovation (article 279-0 bis du CGI)
-            </p>
+            <p className="mt-1">{getMentionLegale()}</p>
           </div>
         </div>
 
+        {/* Boutons action */}
         <div className="text-center space-y-4">
           <div className="flex flex-wrap justify-center gap-3">
             <button
@@ -573,11 +540,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
               Imprimer le devis
             </button>
             <button
-              onClick={() => {
-                setShowEmailForm(!showEmailForm);
-                setEmailError(null);
-                setClientEmail('');
-              }}
+              onClick={() => { setShowEmailForm(!showEmailForm); setEmailError(null); setClientEmail(''); }}
               className="flex items-center px-8 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-semibold shadow-md"
             >
               <Mail className="w-5 h-5 mr-2" />
@@ -587,28 +550,19 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
 
           {showEmailForm && (
             <div className="bg-white border border-gray-200 rounded-lg shadow-md p-6 max-w-md mx-auto text-left">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                Envoyer le devis par email
-              </h3>
+              <h3 className="text-lg font-semibold text-gray-800 mb-3">Envoyer le devis par email</h3>
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email du client
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Email du client</label>
                 <input
                   type="email"
                   value={clientEmail}
-                  onChange={(e) => {
-                    setClientEmail(e.target.value);
-                    setEmailError(null);
-                  }}
+                  onChange={(e) => { setClientEmail(e.target.value); setEmailError(null); }}
                   placeholder="client@exemple.fr"
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   disabled={sendingEmail}
                 />
               </div>
-              {emailError && (
-                <p className="text-red-600 text-sm mb-3">{emailError}</p>
-              )}
+              {emailError && <p className="text-red-600 text-sm mb-3">{emailError}</p>}
               <div className="flex gap-2">
                 <button
                   onClick={sendEmail}
@@ -618,11 +572,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                   {sendingEmail ? 'Envoi en cours...' : 'Envoyer'}
                 </button>
                 <button
-                  onClick={() => {
-                    setShowEmailForm(false);
-                    setEmailError(null);
-                    setClientEmail('');
-                  }}
+                  onClick={() => { setShowEmailForm(false); setEmailError(null); setClientEmail(''); }}
                   disabled={sendingEmail}
                   className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition"
                 >
@@ -634,14 +584,13 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
         </div>
       </main>
 
-      {/* ── Modal annulation du devis ──────────────────────────────────────── */}
+      {/* Modal annulation */}
       {showCancelConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
             <h3 className="text-lg font-semibold text-gray-800 mb-2">Annuler ce devis ?</h3>
             <p className="text-gray-500 text-sm mb-6">
-              Le devis sera marqué comme{' '}
-              <strong className="text-red-600">refusé</strong>. Cette action peut être difficile à annuler.
+              Le devis sera marqué comme <strong className="text-red-600">refusé</strong>. Cette action peut être difficile à annuler.
             </p>
             <div className="flex gap-3 justify-end">
               <button
