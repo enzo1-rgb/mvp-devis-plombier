@@ -20,6 +20,7 @@ interface DevisRow {
   date_emission: string | null;
   montant_ht: number | string;
   tva: number | string;
+  tva_rate: number | null; // ← AJOUTÉ
   montant_ttc: number | string;
   notes: string | null;
   created_at: string | null;
@@ -38,6 +39,7 @@ function toQuote(row: DevisRow): Quote {
     date_emission: row.date_emission ?? undefined,
     total_ht: Number(row.montant_ht) || 0,
     tva: Number(row.tva) || 0,
+    tva_rate: Number(row.tva_rate) || 0.10, // ← AJOUTÉ
     total_ttc: Number(row.montant_ttc) || 0,
     notes: row.notes ?? undefined,
     created_at: row.created_at ?? undefined,
@@ -49,7 +51,7 @@ interface DashboardProps {
   onCreateQuote: () => void;
   onViewQuote: (quote: Quote) => void;
   onEditQuote: (quote: Quote) => void;
-  onViewInvoice: (invoice: any) => void; // 👈 nouveau
+  onViewInvoice: (invoice: any) => void;
 }
 
 // ─── Composant ────────────────────────────────────────────────────────────────
@@ -59,7 +61,7 @@ export default function Dashboard({
   onCreateQuote,
   onViewQuote,
   onEditQuote,
-  onViewInvoice, // 👈 nouveau
+  onViewInvoice,
 }: DashboardProps) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -138,6 +140,7 @@ export default function Dashboard({
         numero_facture: numFacture,
         montant_ht: quote.total_ht,
         tva: quote.tva,
+        tva_rate: quote.tva_rate, // ← AJOUTÉ
         montant_ttc: quote.total_ttc,
         statut: "non_payée",
       });
@@ -274,6 +277,8 @@ export default function Dashboard({
                         className={`pill-status flex-shrink-0 ${
                           quote.status === "accepté"
                             ? "pill-accepté"
+                            : quote.status === "refusé"
+                            ? "pill-refusé"
                             : quote.status === "envoyé"
                             ? "pill-envoyé"
                             : "pill-brouillon"
@@ -323,7 +328,6 @@ export default function Dashboard({
               ))
             )
           ) : (
-            /* ── Liste des factures ── */
             filteredInvoices.length === 0 ? (
               <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200">
                 <Receipt className="w-12 h-12 mx-auto text-slate-200 mb-3" />
@@ -368,7 +372,6 @@ export default function Dashboard({
                     </div>
                   </div>
 
-                  {/* 👇 Bouton Voir ajouté ici */}
                   <div className="flex border-t border-slate-50 bg-slate-50/30">
                     <button
                       onClick={() => onViewInvoice(inv)}
@@ -383,12 +386,6 @@ export default function Dashboard({
           )}
         </div>
       </main>
-
-      {viewMode === "devis" && (
-        <button className="fab" onClick={onCreateQuote}>
-          <Plus className="w-8 h-8 stroke-[3]" />
-        </button>
-      )}
 
       {quoteToDelete && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-6">
@@ -441,6 +438,12 @@ export default function Dashboard({
             </button>
           </div>
         </div>
+      )}
+
+      {viewMode === "devis" && (
+        <button className="fab" onClick={onCreateQuote}>
+          <Plus className="w-8 h-8 stroke-[3]" />
+        </button>
       )}
     </div>
   );

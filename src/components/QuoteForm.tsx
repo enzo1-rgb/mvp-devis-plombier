@@ -3,6 +3,12 @@ import { supabase } from '../lib/supabase';
 import { Prestation, LigneDevis, Quote } from '../lib/types';
 import { ArrowLeft, Plus, Trash2, Save } from 'lucide-react';
 
+const TVA_OPTIONS = [
+  { value: 0.10, label: '10% — Rénovation (art. 279-0 bis CGI)' },
+  { value: 0.20, label: '20% — Construction neuve' },
+  { value: 0.055, label: '5,5% — Amélioration énergétique' },
+] as const;
+
 interface QuoteFormProps {
   onBack: () => void;
   onSuccess: () => void;
@@ -30,6 +36,7 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
   const [clientName, setClientName] = useState('');
   const [clientAddress, setClientAddress] = useState('');
   const [notes, setNotes] = useState('');
+  const [tvaTaux, setTvaTaux] = useState<number>(quoteToEdit?.tva_rate ?? 0.10);
   const [items, setItems] = useState<FormItem[]>([
     { prestation_id: null, description: '', prix_unitaire: 0, quantite: 1, montant_ht: 0 },
   ]);
@@ -56,6 +63,7 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
       setClientName(quoteToEdit.client_name || '');
       setClientAddress(quoteToEdit.client_address || '');
       setNotes(quoteToEdit.notes || '');
+      setTvaTaux(quoteToEdit.tva_rate ?? 0.10);
 
       const { data, error } = await supabase
         .from('lignes_devis')
@@ -126,21 +134,17 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
     }
   };
 
-  const calculateMontant = (prixUnitaire: number, quantite: number) => {
-    return prixUnitaire * quantite;
-  };
+  const calculateMontant = (prixUnitaire: number, quantite: number) => prixUnitaire * quantite;
 
   const updateItem = (index: number, field: keyof FormItem, value: string | number) => {
     const newItems = [...items];
     newItems[index] = { ...newItems[index], [field]: value };
-
     if (field === 'prix_unitaire' || field === 'quantite') {
       newItems[index].montant_ht = calculateMontant(
         newItems[index].prix_unitaire,
         newItems[index].quantite
       );
     }
-
     setItems(newItems);
   };
 
@@ -152,36 +156,20 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
   };
 
   const removeItem = (index: number) => {
-    if (items.length > 1) {
-      setItems(items.filter((_, i) => i !== index));
-    }
+    if (items.length > 1) setItems(items.filter((_, i) => i !== index));
   };
 
   const addPrestation = (prestation: Prestation) => {
     const prix = prestation.prix_unitaire;
     setItems([
       ...items,
-      {
-        prestation_id: prestation.id,
-        description: prestation.nom,
-        prix_unitaire: prix,
-        quantite: 1,
-        montant_ht: prix,
-      },
+      { prestation_id: prestation.id, description: prestation.nom, prix_unitaire: prix, quantite: 1, montant_ht: prix },
     ]);
   };
 
-  const getTotalHT = () => {
-    return items.reduce((sum, item) => sum + item.montant_ht, 0);
-  };
-
-  const getTVA = () => {
-    return getTotalHT() * 0.1;
-  };
-
-  const getTotalTTC = () => {
-    return getTotalHT() + getTVA();
-  };
+  const getTotalHT = () => items.reduce((sum, item) => sum + item.montant_ht, 0);
+  const getTVA = () => getTotalHT() * tvaTaux;
+  const getTotalTTC = () => getTotalHT() + getTVA();
 
   const generateNumero = () => {
     const now = new Date();
@@ -198,43 +186,31 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
       alert('Veuillez remplir le nom et l\'adresse du client');
       return;
     }
-
     if (items.some((item) => !item.description.trim())) {
       alert('Veuillez remplir toutes les descriptions de prestation');
       return;
     }
 
     setSaving(true);
-
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Non authentifié');
 
       const totalHT = getTotalHT();
       const tva = getTVA();
       const totalTTC = getTotalTTC();
       const dateEmission = new Date().toISOString().split('T')[0];
-      const dateValidite = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-        .toISOString()
-        .split('T')[0];
-
+      const dateValidite = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const isEdit = !!quoteToEdit?.id;
 
       if (isEdit) {
-        // Mode modification : UPDATE
         const clientId = quoteToEdit!.client_id!;
         const devisId = quoteToEdit!.id!;
 
         const { error: clientError } = await supabase
           .from('clients')
-          .update({
-            nom: clientName.trim(),
-            adresse: clientAddress.trim(),
-          })
+          .update({ nom: clientName.trim(), adresse: clientAddress.trim() })
           .eq('id', clientId);
-
         if (clientError) throw clientError;
 
         const { error: devisError } = await supabase
@@ -244,18 +220,15 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
             date_validite: dateValidite,
             montant_ht: totalHT,
             tva,
+            tva_rate: tvaTaux,
             montant_ttc: totalTTC,
             notes: notes.trim() || null,
           })
           .eq('id', devisId);
-
         if (devisError) throw devisError;
 
         const { error: deleteLignesError } = await supabase
-          .from('lignes_devis')
-          .delete()
-          .eq('devis_id', devisId);
-
+          .from('lignes_devis').delete().eq('devis_id', devisId);
         if (deleteLignesError) throw deleteLignesError;
 
         const lignes: Omit<LigneDevis, 'id'>[] = items.map((item) => ({
@@ -266,22 +239,14 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
           prix_unitaire: item.prix_unitaire,
           montant_ht: item.montant_ht,
         }));
-
         const { error: lignesError } = await supabase.from('lignes_devis').insert(lignes);
-
         if (lignesError) throw lignesError;
+
       } else {
-        // Mode création : INSERT
         const { data: client, error: clientError } = await supabase
           .from('clients')
-          .insert({
-            plombier_id: user.id,
-            nom: clientName.trim(),
-            adresse: clientAddress.trim(),
-          })
-          .select('id')
-          .single();
-
+          .insert({ plombier_id: user.id, nom: clientName.trim(), adresse: clientAddress.trim() })
+          .select('id').single();
         if (clientError) throw clientError;
         if (!client?.id) throw new Error('Erreur création client');
 
@@ -296,12 +261,11 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
             date_validite: dateValidite,
             montant_ht: totalHT,
             tva,
+            tva_rate: tvaTaux,
             montant_ttc: totalTTC,
             notes: notes.trim() || null,
           })
-          .select('id')
-          .single();
-
+          .select('id').single();
         if (devisError) throw devisError;
         if (!devis?.id) throw new Error('Erreur création devis');
 
@@ -313,9 +277,7 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
           prix_unitaire: item.prix_unitaire,
           montant_ht: item.montant_ht,
         }));
-
         const { error: lignesError } = await supabase.from('lignes_devis').insert(lignes);
-
         if (lignesError) throw lignesError;
       }
 
@@ -325,7 +287,7 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
       const errObj = err as { code?: string; message?: string };
       const message =
         errObj?.code === '42P01'
-          ? 'Une des tables (devis, clients, lignes_devis, prestations) n\'existe pas.'
+          ? 'Une des tables n\'existe pas. Vérifiez vos migrations Supabase.'
           : errObj?.message ?? 'Erreur lors de la sauvegarde du devis';
       alert(message);
     } finally {
@@ -349,10 +311,7 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
       <header className="bg-blue-600 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center">
-            <button
-              onClick={onBack}
-              className="mr-4 p-2 hover:bg-blue-700 rounded-lg transition"
-            >
+            <button onClick={onBack} className="mr-4 p-2 hover:bg-blue-700 rounded-lg transition">
               <ArrowLeft className="w-6 h-6" />
             </button>
             <h1 className="text-2xl sm:text-3xl font-bold">
@@ -363,13 +322,13 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
       </header>
 
       <main className="max-w-4xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+
+        {/* Informations client */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Informations Client</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nom du client
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Nom du client</label>
               <input
                 type="text"
                 value={clientName}
@@ -379,9 +338,7 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Adresse du client
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Adresse du client</label>
               <input
                 type="text"
                 value={clientAddress}
@@ -393,6 +350,7 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
           </div>
         </div>
 
+        {/* Prestations */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-800">Prestations</h2>
@@ -425,8 +383,7 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
           {!loadingPrestations && prestations.length === 0 && (
             <div className="mb-4 p-4 bg-gray-50 rounded-lg">
               <p className="text-sm text-gray-600">
-                Aucune prestation en base. Ajoutez des prestations manuellement ci-dessous ou dans
-                la table &quot;prestations&quot; Supabase.
+                Aucune prestation en base. Ajoutez des prestations manuellement ci-dessous.
               </p>
             </div>
           )}
@@ -436,9 +393,7 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
               <div key={index} className="border border-gray-200 rounded-lg p-4">
                 <div className="grid gap-4 sm:grid-cols-12">
                   <div className="sm:col-span-5">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Description
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                     <input
                       type="text"
                       value={item.description}
@@ -448,30 +403,22 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
                     />
                   </div>
                   <div className="sm:col-span-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Prix unitaire (€)
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Prix unitaire (€)</label>
                     <input
                       type="number"
                       value={item.prix_unitaire}
-                      onChange={(e) =>
-                        updateItem(index, 'prix_unitaire', parseFloat(e.target.value) || 0)
-                      }
+                      onChange={(e) => updateItem(index, 'prix_unitaire', parseFloat(e.target.value) || 0)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       min="0"
                       step="0.01"
                     />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Quantité
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Quantité</label>
                     <input
                       type="number"
                       value={item.quantite}
-                      onChange={(e) =>
-                        updateItem(index, 'quantite', parseFloat(e.target.value) || 0)
-                      }
+                      onChange={(e) => updateItem(index, 'quantite', parseFloat(e.target.value) || 0)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       min="0.01"
                       step="0.01"
@@ -479,9 +426,7 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
                   </div>
                   <div className="sm:col-span-2 flex items-end">
                     <div className="w-full">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Total HT
-                      </label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Total HT</label>
                       <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg font-semibold">
                         {item.montant_ht.toFixed(2)} €
                       </div>
@@ -501,6 +446,7 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
           </div>
         </div>
 
+        {/* Notes */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Notes</h2>
           <textarea
@@ -512,15 +458,34 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
           />
         </div>
 
+        {/* Récapitulatif */}
         <div className="bg-blue-50 rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Récapitulatif</h2>
+
+          <div className="mb-5">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Taux de TVA applicable
+            </label>
+            <select
+              value={tvaTaux}
+              onChange={(e) => setTvaTaux(parseFloat(e.target.value))}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+            >
+              {TVA_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <div className="space-y-2">
             <div className="flex justify-between text-lg">
               <span className="text-gray-700">Total HT</span>
               <span className="font-semibold">{getTotalHT().toFixed(2)} €</span>
             </div>
             <div className="flex justify-between text-lg">
-              <span className="text-gray-700">TVA (10%)</span>
+              <span className="text-gray-700">TVA ({(tvaTaux * 100).toFixed(1)}%)</span>
               <span className="font-semibold">{getTVA().toFixed(2)} €</span>
             </div>
             <div className="border-t-2 border-blue-300 pt-2 flex justify-between text-2xl">
