@@ -45,11 +45,18 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
   const [emailError, setEmailError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; ok: boolean } | null>(null);
 
-  // Taux TVA déduit depuis les montants stockés (fallback 10%)
   const tvaTaux = invoice.montant_ht > 0
     ? Math.round((invoice.tva / invoice.montant_ht) * 1000) / 1000
     : 0.10;
   const tvaPct = (tvaTaux * 100).toFixed(1);
+
+  // Date d'échéance calculée depuis la date d'émission + délai
+  const dateEcheance = () => {
+    const delai = plombier?.delai_paiement ?? 30;
+    const base = new Date(invoice.date_emission || invoice.created_at);
+    base.setDate(base.getDate() + delai);
+    return base.toLocaleDateString('fr-FR');
+  };
 
   useEffect(() => {
     loadAll();
@@ -123,26 +130,31 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
     setSending(true);
     try {
       const lignesRows = lignes
-        .map(
-          (l) => `
+        .map((l) => `
           <tr>
             <td style="padding:10px;border-bottom:1px solid #e5e7eb">${l.description}</td>
             <td style="padding:10px;border-bottom:1px solid #e5e7eb;text-align:right">${l.prix_unitaire.toFixed(2)} €</td>
             <td style="padding:10px;border-bottom:1px solid #e5e7eb;text-align:right">${l.quantite}</td>
             <td style="padding:10px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600">${l.montant_ht.toFixed(2)} €</td>
-          </tr>`
-        )
+          </tr>`)
         .join('');
 
       const html = `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
           <h1 style="color:#7c3aed">FACTURE ${invoice.numero_facture}</h1>
           <p style="color:#6b7280">Date : ${new Date(invoice.date_emission || invoice.created_at).toLocaleDateString('fr-FR')}</p>
+          <p style="color:#6b7280">Échéance : ${dateEcheance()}</p>
           ${plombier ? `
             <div style="margin:20px 0;padding:15px;background:#f5f3ff;border-left:4px solid #7c3aed;border-radius:4px">
-              <strong>${plombier.nom_entreprise || ''}</strong><br/>
+              <strong>${plombier.nom_entreprise || ''}</strong>
+              ${plombier.forme_juridique ? ` — <span style="color:#6b7280">${plombier.forme_juridique}</span>` : ''}<br/>
               ${plombier.prenom || ''} ${plombier.nom || ''}<br/>
-              <span style="color:#6b7280">${plombier.adresse || ''}<br/>SIRET : ${plombier.siret || ''}</span>
+              <span style="color:#6b7280">
+                ${plombier.adresse || ''}<br/>
+                SIRET : ${plombier.siret || ''}
+                ${plombier.tva_intracom ? ` — TVA : ${plombier.tva_intracom}` : ''}
+                ${plombier.numero_rcs ? `<br/>${plombier.numero_rcs}` : ''}
+              </span>
             </div>` : ''}
           ${clientInfo ? `
             <div style="margin:20px 0;padding:15px;background:#f9fafb;border-radius:4px">
@@ -164,6 +176,14 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
             <p>Total HT : <strong>${Number(invoice.montant_ht).toFixed(2)} €</strong></p>
             <p>TVA (${tvaPct}%) : <strong>${Number(invoice.tva).toFixed(2)} €</strong></p>
             <p style="font-size:20px;color:#7c3aed">Total TTC : <strong>${Number(invoice.montant_ttc).toFixed(2)} €</strong></p>
+          </div>
+          ${plombier?.iban ? `
+            <div style="margin:20px 0;padding:12px;background:#f0fdf4;border-radius:4px;font-size:13px">
+              <strong>Règlement par virement :</strong><br/>
+              <span style="font-family:monospace">${plombier.iban}</span>
+            </div>` : ''}
+          <div style="margin-top:20px;padding-top:15px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af">
+            <p>En cas de retard de paiement, des pénalités au taux de ${plombier?.taux_penalite || '3 fois le taux légal'} seront appliquées, ainsi qu'une indemnité forfaitaire de recouvrement de 40 €.</p>
           </div>
         </div>`;
 
@@ -233,14 +253,12 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
               <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
               {statut === 'payée' ? 'Payée' : 'Marquer payée'}
             </button>
-
             <button
               onClick={() => setShowEmailForm(!showEmailForm)}
               className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 text-white rounded-lg font-semibold text-xs hover:bg-emerald-600 transition flex-1 sm:flex-none justify-center"
             >
               <Mail className="w-4 h-4 flex-shrink-0" /> Email
             </button>
-
             <button
               onClick={() => window.print()}
               className="flex items-center gap-1.5 px-3 py-2 bg-white/20 text-white rounded-lg font-semibold text-xs hover:bg-white/30 transition flex-1 sm:flex-none justify-center"
@@ -276,16 +294,19 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
         </div>
       )}
 
-      {/* Contenu facture */}
       <div className="max-w-5xl mx-auto px-4 py-6">
         <div className="bg-white rounded-2xl shadow-md p-8">
 
+          {/* En-tête */}
           <div className="flex justify-between items-start mb-8 pb-6 border-b-2 border-purple-100">
             <div>
-              <h2 className="text-3xl font-bold text-purple-700 mb-2">FACTURE</h2>
-              <p className="text-gray-500 font-mono text-sm">{invoice.numero_facture}</p>
+              <h2 className="text-3xl font-bold text-purple-700 mb-1">FACTURE</h2>
+              <p className="text-gray-400 font-mono text-sm">{invoice.numero_facture}</p>
               <p className="text-gray-500 text-sm mt-1">
-                Date : {new Date(invoice.date_emission || invoice.created_at).toLocaleDateString('fr-FR')}
+                Émise le : {new Date(invoice.date_emission || invoice.created_at).toLocaleDateString('fr-FR')}
+              </p>
+              <p className="text-gray-500 text-sm">
+                Échéance : <span className="font-semibold text-gray-700">{dateEcheance()}</span>
               </p>
             </div>
             <span className={`px-4 py-2 rounded-xl font-bold text-sm ${statut === 'payée' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
@@ -293,28 +314,44 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
             </span>
           </div>
 
+          {/* Émetteur */}
           {plombier && (
             <div className="mb-6">
-              <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Émetteur</h3>
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Émetteur</h3>
               <div className="bg-purple-50 p-4 rounded-xl border-l-4 border-purple-600">
-                {plombier.nom_entreprise && <p className="font-bold text-gray-800">{plombier.nom_entreprise}</p>}
+                {plombier.nom_entreprise && (
+                  <p className="font-bold text-gray-800">
+                    {plombier.nom_entreprise}
+                    {plombier.forme_juridique && (
+                      <span className="font-normal text-gray-500 text-sm ml-2">— {plombier.forme_juridique}</span>
+                    )}
+                  </p>
+                )}
                 <p className="font-semibold text-gray-700">{plombier.prenom || ''} {plombier.nom || ''}</p>
                 <p className="text-gray-500 text-sm">{plombier.adresse || ''}</p>
                 <p className="text-gray-500 text-sm">SIRET : {plombier.siret || ''}</p>
+                {plombier.tva_intracom && (
+                  <p className="text-gray-500 text-sm">N° TVA : {plombier.tva_intracom}</p>
+                )}
+                {plombier.numero_rcs && (
+                  <p className="text-gray-500 text-sm">{plombier.numero_rcs}</p>
+                )}
               </div>
             </div>
           )}
 
+          {/* Client */}
           <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Client</h3>
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Client</h3>
             <div className="bg-gray-50 p-4 rounded-xl">
               <p className="font-semibold text-gray-800">{clientName}</p>
               {clientAddr && <p className="text-gray-500 text-sm">{clientAddr}</p>}
             </div>
           </div>
 
+          {/* Prestations */}
           <div className="mb-6">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Prestations</h3>
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Prestations</h3>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
@@ -339,7 +376,8 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
             </div>
           </div>
 
-          <div className="flex justify-end">
+          {/* Totaux */}
+          <div className="flex justify-end mb-6">
             <div className="w-full sm:w-80 space-y-2">
               <div className="flex justify-between text-gray-600">
                 <span>Total HT</span>
@@ -354,6 +392,25 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
                 <span className="text-purple-700 font-bold">{Number(invoice.montant_ttc).toFixed(2)} €</span>
               </div>
             </div>
+          </div>
+
+          {/* IBAN */}
+          {plombier?.iban && (
+            <div className="mb-4 p-4 bg-green-50 rounded-xl border border-green-100">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Règlement par virement</p>
+              <p className="font-mono text-sm text-gray-700">{plombier.iban}</p>
+            </div>
+          )}
+
+          {/* Mentions légales */}
+          <div className="pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
+            <p>
+              Paiement sous {plombier?.delai_paiement ?? 30} jours à compter de la date d'émission — Échéance le {dateEcheance()}.
+            </p>
+            <p>
+              En cas de retard, pénalités au taux de {plombier?.taux_penalite || '3 fois le taux légal'} + indemnité forfaitaire de recouvrement de 40 € (art. L441-10 Code de Commerce).
+            </p>
+            <p>Pas d'escompte pour règlement anticipé.</p>
           </div>
         </div>
       </div>

@@ -6,6 +6,12 @@ export interface Plombier {
   adresse: string;
   siret: string;
   nom_entreprise?: string;
+  tva_intracom?: string;
+  forme_juridique?: string;
+  numero_rcs?: string;
+  iban?: string;
+  delai_paiement?: number;
+  taux_penalite?: string;
 }
 
 /** Table clients - informations client */
