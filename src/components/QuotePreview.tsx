@@ -123,9 +123,12 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
         return;
       }
 
-      const numFacture = `FACT-${new Date().getFullYear()}-${Math.floor(
-        1000 + Math.random() * 9000
-      )}`;
+      // ✅ Numéro généré par Postgres, séquentiel et sans doublon possible
+      const { data: numData, error: numError } = await supabase.rpc('generate_numero_facture', {
+        p_plombier_id: userId,
+      });
+      if (numError) throw numError;
+      const numFacture = numData as string;
 
       const { error: insertError } = await supabase.from('factures').insert({
         plombier_id: userId,
@@ -138,8 +141,8 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
         montant_ttc: quote.total_ttc,
         statut: 'non_payée',
       });
-
       if (insertError) throw insertError;
+
       setToast({ message: `Facture ${numFacture} générée !`, ok: true });
     } catch (err) {
       console.error(err);
@@ -256,9 +259,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
           .select('nom, prenom, adresse, siret, nom_entreprise')
           .eq('id', plombierId)
           .single();
-        if (!plombierError && plombierRow) {
-          plombierData = plombierRow;
-        }
+        if (!plombierError && plombierRow) plombierData = plombierRow;
       }
 
       const { data: lignesData } = await supabase
@@ -331,7 +332,6 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       <main className="quote-main max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="quote-content bg-white rounded-lg shadow-lg p-8 mb-6">
 
-          {/* En-tête devis + statut */}
           <div className="flex justify-between items-start mb-8 pb-6 border-b-2">
             <div>
               <h2 className="text-3xl font-bold text-blue-600 mb-2">DEVIS</h2>
@@ -440,7 +440,6 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             </div>
           </div>
 
-          {/* Émetteur */}
           {plombier && (
             <div className="mb-8">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">Émetteur du devis</h3>
@@ -457,7 +456,6 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             </div>
           )}
 
-          {/* Client */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-gray-800 mb-3">Informations Client</h3>
             <div className="bg-gray-50 p-4 rounded-lg">
@@ -466,7 +464,6 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             </div>
           </div>
 
-          {/* Prestations */}
           <div className="mb-8">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Détail des Prestations</h3>
             <div className="overflow-x-auto">
@@ -493,7 +490,6 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             </div>
           </div>
 
-          {/* Notes */}
           {quote.notes && (
             <div className="mb-8">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">Notes</h3>
@@ -503,7 +499,6 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             </div>
           )}
 
-          {/* Totaux */}
           <div className="border-t-2 pt-6">
             <div className="flex justify-end">
               <div className="w-full sm:w-96 space-y-3">
@@ -523,14 +518,12 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             </div>
           </div>
 
-          {/* Mention légale */}
           <div className="quote-legal mt-6 pt-4 border-t text-center text-xs text-gray-500">
             <p>Devis valable 30 jours à compter de la date d'émission</p>
             <p className="mt-1">{getMentionLegale()}</p>
           </div>
         </div>
 
-        {/* Boutons action */}
         <div className="text-center space-y-4">
           <div className="flex flex-wrap justify-center gap-3">
             <button
@@ -584,7 +577,6 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
         </div>
       </main>
 
-      {/* Modal annulation */}
       {showCancelConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
