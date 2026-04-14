@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { LogIn } from 'lucide-react';
+import PrivacyPolicy from './PrivacyPolicy';
 
 export default function Auth() {
   const [loading, setLoading] = useState(false);
@@ -8,6 +9,11 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const [error, setError] = useState('');
+  const [showPrivacy, setShowPrivacy] = useState(false);
+
+  if (showPrivacy) {
+    return <PrivacyPolicy onBack={() => setShowPrivacy(false)} />;
+  }
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -16,24 +22,15 @@ export default function Auth() {
 
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
+        const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
         if (data.user) {
-          await supabase.from('plombiers').insert({
-            id: data.user.id,
-            email: email,
-          });
+          await supabase.from('plombiers').insert({ id: data.user.id, email });
         }
         alert('Compte créé avec succès ! Vous pouvez maintenant vous connecter.');
         setIsSignUp(false);
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
     } catch (error: unknown) {
@@ -53,9 +50,7 @@ export default function Auth() {
           </div>
         </div>
 
-        <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">
-          Gestion de Devis
-        </h1>
+        <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">ProPlomb</h1>
         <p className="text-center text-gray-600 mb-8">
           {isSignUp ? 'Créer un compte' : 'Connectez-vous à votre compte'}
         </p>
@@ -91,6 +86,20 @@ export default function Auth() {
             />
           </div>
 
+          {isSignUp && (
+            <p className="text-xs text-gray-500 leading-relaxed">
+              En créant un compte, vous acceptez notre{' '}
+              <button
+                type="button"
+                onClick={() => setShowPrivacy(true)}
+                className="text-blue-600 underline hover:text-blue-700"
+              >
+                politique de confidentialité
+              </button>
+              {' '}et le traitement de vos données conformément au RGPD.
+            </p>
+          )}
+
           {error && (
             <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm">
               {error}
@@ -112,6 +121,15 @@ export default function Auth() {
             className="text-blue-600 hover:text-blue-700 text-sm font-medium"
           >
             {isSignUp ? 'Déjà un compte ? Se connecter' : "Pas de compte ? S'inscrire"}
+          </button>
+        </div>
+
+        <div className="mt-6 pt-4 border-t border-gray-100 text-center">
+          <button
+            onClick={() => setShowPrivacy(true)}
+            className="text-xs text-gray-400 hover:text-gray-600 transition"
+          >
+            Politique de confidentialité & RGPD
           </button>
         </div>
       </div>
