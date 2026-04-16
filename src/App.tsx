@@ -6,6 +6,7 @@ import Dashboard from "./components/Dashboard";
 import QuoteForm from "./components/QuoteForm";
 import QuotePreview from "./components/QuotePreview";
 import InvoicePreview from "./components/InvoicePreview";
+import ClientPortal from "./components/ClientPortal";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -14,18 +15,25 @@ export default function App() {
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
 
+  // Détection du token client dans l'URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const clientToken = urlParams.get('token');
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // Si un token est présent dans l'URL → portail client public
+  if (clientToken) {
+    return <ClientPortal token={clientToken} />;
+  }
 
   const handleCreateQuote = () => {
     setSelectedQuote(null);
@@ -57,7 +65,11 @@ export default function App() {
     setCurrentView("dashboard");
   };
 
-  if (loading) return <div>Chargement...</div>;
+  if (loading) return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+    </div>
+  );
 
   if (!user) return <Auth />;
 
@@ -72,7 +84,6 @@ export default function App() {
           onViewInvoice={handleViewInvoice}
         />
       )}
-
       {currentView === "create" && (
         <QuoteForm
           onBack={handleBackToDashboard}
@@ -80,11 +91,9 @@ export default function App() {
           quoteToEdit={selectedQuote ?? undefined}
         />
       )}
-
       {currentView === "preview" && selectedQuote && (
         <QuotePreview quote={selectedQuote} onBack={handleBackToDashboard} />
       )}
-
       {currentView === "invoice" && selectedInvoice && (
         <InvoicePreview invoice={selectedInvoice} onBack={handleBackToDashboard} />
       )}

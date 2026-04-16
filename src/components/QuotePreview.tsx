@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Quote, QuoteItem, Plombier } from '../lib/types';
-import { ArrowLeft, FileText, Mail } from 'lucide-react';
+import { ArrowLeft, FileText, Mail, Link } from 'lucide-react';
 
 interface QuotePreviewProps {
   quote: Quote;
@@ -29,6 +29,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
   const [showStatusEdit, setShowStatusEdit] = useState(false);
   const [toast, setToast] = useState<{ message: string; ok: boolean } | null>(null);
   const [acceptLoading, setAcceptLoading] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const tvaTaux = quote.tva_rate ?? 0.10;
   const tvaPct = (tvaTaux * 100).toFixed(1);
@@ -123,7 +124,6 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
         return;
       }
 
-      // ✅ Numéro généré par Postgres, séquentiel et sans doublon possible
       const { data: numData, error: numError } = await supabase.rpc('generate_numero_facture', {
         p_plombier_id: userId,
       });
@@ -155,6 +155,20 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
   const handleCancelConfirmed = async () => {
     setShowCancelConfirm(false);
     await updateStatus('refusé');
+  };
+
+  const copyClientLink = async () => {
+    if (!quote.id) return;
+    const { data } = await supabase
+      .from('devis')
+      .select('token')
+      .eq('id', quote.id)
+      .single();
+    if (!data?.token) return;
+    const url = `${window.location.origin}?token=${data.token}`;
+    await navigator.clipboard.writeText(url);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 3000);
   };
 
   const getTVA = () => quote.total_ht * tvaTaux;
@@ -524,6 +538,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
           </div>
         </div>
 
+        {/* Boutons action */}
         <div className="text-center space-y-4">
           <div className="flex flex-wrap justify-center gap-3">
             <button
@@ -538,6 +553,13 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             >
               <Mail className="w-5 h-5 mr-2" />
               Envoyer par email
+            </button>
+            <button
+              onClick={copyClientLink}
+              className="flex items-center px-8 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition font-semibold shadow-md"
+            >
+              <Link className="w-5 h-5 mr-2" />
+              {linkCopied ? '✅ Lien copié !' : 'Copier le lien client'}
             </button>
           </div>
 
