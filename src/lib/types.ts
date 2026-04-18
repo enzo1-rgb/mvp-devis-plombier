@@ -63,6 +63,8 @@ export interface Devis {
   montant_ttc: number;
   notes?: string;
   created_at?: string;
+  signe_par_client?: boolean;
+  date_signature?: string;
 }
 
 /** Représentation d'un devis avec infos client (pour l'affichage) */
@@ -81,6 +83,8 @@ export interface Quote {
   total_ttc: number;
   notes?: string;
   created_at?: string;
+  signe_par_client?: boolean;
+  date_signature?: string;
 }
 
 /** Ligne de devis pour l'affichage */

@@ -22,6 +22,8 @@ interface DevisRow {
   montant_ttc: number | string;
   notes: string | null;
   created_at: string | null;
+  signe_par_client: boolean | null;
+  date_signature: string | null;
   clients: { nom: string; adresse: string } | null;
 }
 
@@ -41,6 +43,8 @@ function toQuote(row: DevisRow): Quote {
     total_ttc: Number(row.montant_ttc) || 0,
     notes: row.notes ?? undefined,
     created_at: row.created_at ?? undefined,
+    signe_par_client: row.signe_par_client ?? false,
+    date_signature: row.date_signature ?? undefined,
   };
 }
 
@@ -127,7 +131,6 @@ export default function Dashboard({
         .eq("id", quote.id);
       if (updateError) throw updateError;
 
-      // ✅ Numéro généré par Postgres, séquentiel et sans doublon possible
       const { data: numData, error: numError } = await supabase.rpc('generate_numero_facture', {
         p_plombier_id: user.id,
       });
@@ -255,7 +258,14 @@ export default function Dashboard({
                 <div key={quote.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                   <div className="p-5">
                     <div className="flex justify-between items-start mb-2">
-                      <p className="font-bold text-slate-900 truncate pr-3">{quote.client_name}</p>
+                      <div className="flex-1 min-w-0 pr-3">
+                        <p className="font-bold text-slate-900 truncate">{quote.client_name}</p>
+                        {quote.signe_par_client && (
+                          <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px] font-bold">
+                            ✅ Signé par le client
+                          </span>
+                        )}
+                      </div>
                       <span className={`pill-status flex-shrink-0 ${
                         quote.status === "accepté" ? "pill-accepté"
                         : quote.status === "refusé" ? "pill-refusé"

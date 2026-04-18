@@ -19,6 +19,7 @@ interface DevisPublic {
   notes: string | null;
   plombier_id: string;
   client_id: string;
+  signe_par_client: boolean;
 }
 
 interface LignePublic {
@@ -112,7 +113,11 @@ export default function ClientPortal({ token }: ClientPortalProps) {
     try {
       const { error } = await supabase
         .from('devis')
-        .update({ statut: decision })
+        .update({
+          statut: decision,
+          signe_par_client: decision === 'accepté',
+          date_signature: new Date().toISOString(),
+        })
         .eq('token', token);
 
       if (error) throw error;
@@ -185,7 +190,6 @@ export default function ClientPortal({ token }: ClientPortalProps) {
   return (
     <div className="min-h-screen bg-gray-50">
 
-      {/* Header */}
       <header className="bg-blue-600 text-white shadow-lg">
         <div className="max-w-3xl mx-auto px-4 py-5 flex items-center gap-3">
           <FileText className="w-6 h-6 flex-shrink-0" />
@@ -200,14 +204,12 @@ export default function ClientPortal({ token }: ClientPortalProps) {
 
       <main className="max-w-3xl mx-auto px-4 py-8 space-y-6">
 
-        {/* Validité */}
         {devis?.date_validite && (
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
             ⏳ Ce devis est valable jusqu'au <strong>{new Date(devis.date_validite).toLocaleDateString('fr-FR')}</strong>
           </div>
         )}
 
-        {/* Émetteur */}
         {plombier && (
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Votre prestataire</h2>
@@ -235,7 +237,6 @@ export default function ClientPortal({ token }: ClientPortalProps) {
           </div>
         )}
 
-        {/* Client */}
         {client && (
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Destinataire</h2>
@@ -244,7 +245,6 @@ export default function ClientPortal({ token }: ClientPortalProps) {
           </div>
         )}
 
-        {/* Prestations */}
         <div className="bg-white rounded-2xl shadow-sm p-6">
           <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Détail des prestations</h2>
           <div className="overflow-x-auto">
@@ -270,7 +270,6 @@ export default function ClientPortal({ token }: ClientPortalProps) {
             </table>
           </div>
 
-          {/* Totaux */}
           <div className="flex justify-end mt-4">
             <div className="w-full sm:w-72 space-y-2">
               <div className="flex justify-between text-gray-600 text-sm">
@@ -289,7 +288,6 @@ export default function ClientPortal({ token }: ClientPortalProps) {
           </div>
         </div>
 
-        {/* Notes */}
         {devis?.notes && (
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Notes</h2>
@@ -297,7 +295,6 @@ export default function ClientPortal({ token }: ClientPortalProps) {
           </div>
         )}
 
-        {/* Boutons signature */}
         {devis?.statut === 'envoyé' || devis?.statut === 'brouillon' ? (
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <h2 className="text-base font-bold text-gray-900 mb-2">Votre réponse</h2>
