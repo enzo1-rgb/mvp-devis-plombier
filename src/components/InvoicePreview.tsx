@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Plombier } from '../lib/types';
-import { ArrowLeft, Receipt, Mail, Printer, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Receipt, Mail, Printer, CheckCircle2, Download } from 'lucide-react';
+import { pdf } from '@react-pdf/renderer';
+import FacturePDF from './FacturePDF';
 
 interface Invoice {
   id: string;
@@ -44,13 +46,13 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
   const [sending, setSending] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; ok: boolean } | null>(null);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
 
   const tvaTaux = invoice.montant_ht > 0
     ? Math.round((invoice.tva / invoice.montant_ht) * 1000) / 1000
     : 0.10;
   const tvaPct = (tvaTaux * 100).toFixed(1);
 
-  // Date d'échéance calculée depuis la date d'émission + délai
   const dateEcheance = () => {
     const delai = plombier?.delai_paiement ?? 30;
     const base = new Date(invoice.date_emission || invoice.created_at);
@@ -58,9 +60,7 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
     return base.toLocaleDateString('fr-FR');
   };
 
-  useEffect(() => {
-    loadAll();
-  }, [invoice.id]);
+  useEffect(() => { loadAll(); }, [invoice.id]);
 
   useEffect(() => {
     if (!toast) return;
@@ -84,11 +84,7 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
 
   const loadClient = async () => {
     if (!invoice.client_id) return;
-    const { data } = await supabase
-      .from('clients')
-      .select('nom, adresse')
-      .eq('id', invoice.client_id)
-      .single();
+    const { data } = await supabase.from('clients').select('nom, adresse').eq('id', invoice.client_id).single();
     if (data) setClientInfo(data);
   };
 
@@ -98,26 +94,55 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
       .from('lignes_devis')
       .select('id, description, quantite, prix_unitaire, montant_ht')
       .eq('devis_id', invoice.devis_id);
-    setLignes(
-      (data || []).map((r) => ({
-        id: r.id,
-        description: r.description,
-        quantite: Number(r.quantite),
-        prix_unitaire: Number(r.prix_unitaire),
-        montant_ht: Number(r.montant_ht),
-      }))
-    );
+    setLignes((data || []).map((r) => ({
+      id: r.id,
+      description: r.description,
+      quantite: Number(r.quantite),
+      prix_unitaire: Number(r.prix_unitaire),
+      montant_ht: Number(r.montant_ht),
+    })));
   };
 
   const togglePayment = async () => {
     setToggling(true);
     const newStatut = statut === 'payée' ? 'non_payée' : 'payée';
-    const { error } = await supabase
-      .from('factures')
-      .update({ statut: newStatut })
-      .eq('id', invoice.id);
+    const { error } = await supabase.from('factures').update({ statut: newStatut }).eq('id', invoice.id);
     if (!error) setStatut(newStatut);
     setToggling(false);
+  };
+
+  const downloadPDF = async () => {
+    setGeneratingPDF(true);
+    try {
+      const blob = await pdf(
+        <FacturePDF
+          numeroFacture={invoice.numero_facture}
+          dateEmission={new Date(invoice.date_emission || invoice.created_at).toLocaleDateString('fr-FR')}
+          dateEcheance={dateEcheance()}
+          statut={statut}
+          clientNom={clientInfo?.nom || invoice.client_name || 'Client inconnu'}
+          clientAdresse={clientInfo?.adresse || invoice.client_address}
+          plombier={plombier}
+          lignes={lignes}
+          montantHT={Number(invoice.montant_ht)}
+          tva={Number(invoice.tva)}
+          tvaPct={tvaPct}
+          montantTTC={Number(invoice.montant_ttc)}
+        />
+      ).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Facture-${invoice.numero_facture}-${clientInfo?.nom || ''}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Erreur PDF:', err);
+      alert('Erreur lors de la génération du PDF.');
+    } finally {
+      setGeneratingPDF(false);
+    }
   };
 
   const sendInvoiceEmail = async () => {
@@ -129,15 +154,13 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
     setEmailError(null);
     setSending(true);
     try {
-      const lignesRows = lignes
-        .map((l) => `
-          <tr>
-            <td style="padding:10px;border-bottom:1px solid #e5e7eb">${l.description}</td>
-            <td style="padding:10px;border-bottom:1px solid #e5e7eb;text-align:right">${l.prix_unitaire.toFixed(2)} €</td>
-            <td style="padding:10px;border-bottom:1px solid #e5e7eb;text-align:right">${l.quantite}</td>
-            <td style="padding:10px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600">${l.montant_ht.toFixed(2)} €</td>
-          </tr>`)
-        .join('');
+      const lignesRows = lignes.map((l) => `
+        <tr>
+          <td style="padding:10px;border-bottom:1px solid #e5e7eb">${l.description}</td>
+          <td style="padding:10px;border-bottom:1px solid #e5e7eb;text-align:right">${l.prix_unitaire.toFixed(2)} €</td>
+          <td style="padding:10px;border-bottom:1px solid #e5e7eb;text-align:right">${l.quantite}</td>
+          <td style="padding:10px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:600">${l.montant_ht.toFixed(2)} €</td>
+        </tr>`).join('');
 
       const html = `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
@@ -146,15 +169,9 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
           <p style="color:#6b7280">Échéance : ${dateEcheance()}</p>
           ${plombier ? `
             <div style="margin:20px 0;padding:15px;background:#f5f3ff;border-left:4px solid #7c3aed;border-radius:4px">
-              <strong>${plombier.nom_entreprise || ''}</strong>
-              ${plombier.forme_juridique ? ` — <span style="color:#6b7280">${plombier.forme_juridique}</span>` : ''}<br/>
+              <strong>${plombier.nom_entreprise || ''}</strong>${plombier.forme_juridique ? ` — ${plombier.forme_juridique}` : ''}<br/>
               ${plombier.prenom || ''} ${plombier.nom || ''}<br/>
-              <span style="color:#6b7280">
-                ${plombier.adresse || ''}<br/>
-                SIRET : ${plombier.siret || ''}
-                ${plombier.tva_intracom ? ` — TVA : ${plombier.tva_intracom}` : ''}
-                ${plombier.numero_rcs ? `<br/>${plombier.numero_rcs}` : ''}
-              </span>
+              <span style="color:#6b7280">${plombier.adresse || ''}<br/>SIRET : ${plombier.siret || ''}${plombier.tva_intracom ? ` — TVA : ${plombier.tva_intracom}` : ''}</span>
             </div>` : ''}
           ${clientInfo ? `
             <div style="margin:20px 0;padding:15px;background:#f9fafb;border-radius:4px">
@@ -190,11 +207,7 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
       const res = await fetch(`${import.meta.env.VITE_EMAIL_SERVER_URL}/send-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: email,
-          subject: `Facture ${invoice.numero_facture} - ${clientInfo?.nom || ''}`,
-          html,
-        }),
+        body: JSON.stringify({ to: email, subject: `Facture ${invoice.numero_facture} - ${clientInfo?.nom || ''}`, html }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
@@ -244,14 +257,18 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
             <button
               onClick={togglePayment}
               disabled={toggling}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold text-xs transition disabled:opacity-50 flex-1 sm:flex-none justify-center ${
-                statut === 'payée'
-                  ? 'bg-green-500 text-white hover:bg-green-600'
-                  : 'bg-white text-purple-700 hover:bg-purple-50'
-              }`}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold text-xs transition disabled:opacity-50 flex-1 sm:flex-none justify-center ${statut === 'payée' ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-white text-purple-700 hover:bg-purple-50'}`}
             >
               <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
               {statut === 'payée' ? 'Payée' : 'Marquer payée'}
+            </button>
+            <button
+              onClick={downloadPDF}
+              disabled={generatingPDF}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 text-white rounded-lg font-semibold text-xs hover:bg-slate-900 transition flex-1 sm:flex-none justify-center disabled:opacity-50"
+            >
+              <Download className="w-4 h-4 flex-shrink-0" />
+              {generatingPDF ? 'Génération...' : 'PDF'}
             </button>
             <button
               onClick={() => setShowEmailForm(!showEmailForm)}
@@ -281,11 +298,7 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
                 placeholder="email@client.fr"
                 className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
               />
-              <button
-                onClick={sendInvoiceEmail}
-                disabled={sending}
-                className="px-5 py-2 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition disabled:opacity-50"
-              >
+              <button onClick={sendInvoiceEmail} disabled={sending} className="px-5 py-2 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition disabled:opacity-50">
                 {sending ? 'Envoi...' : 'Envoyer'}
               </button>
             </div>
@@ -297,24 +310,18 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
       <div className="max-w-5xl mx-auto px-4 py-6">
         <div className="bg-white rounded-2xl shadow-md p-8">
 
-          {/* En-tête */}
           <div className="flex justify-between items-start mb-8 pb-6 border-b-2 border-purple-100">
             <div>
               <h2 className="text-3xl font-bold text-purple-700 mb-1">FACTURE</h2>
               <p className="text-gray-400 font-mono text-sm">{invoice.numero_facture}</p>
-              <p className="text-gray-500 text-sm mt-1">
-                Émise le : {new Date(invoice.date_emission || invoice.created_at).toLocaleDateString('fr-FR')}
-              </p>
-              <p className="text-gray-500 text-sm">
-                Échéance : <span className="font-semibold text-gray-700">{dateEcheance()}</span>
-              </p>
+              <p className="text-gray-500 text-sm mt-1">Émise le : {new Date(invoice.date_emission || invoice.created_at).toLocaleDateString('fr-FR')}</p>
+              <p className="text-gray-500 text-sm">Échéance : <span className="font-semibold text-gray-700">{dateEcheance()}</span></p>
             </div>
             <span className={`px-4 py-2 rounded-xl font-bold text-sm ${statut === 'payée' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
               {statut === 'payée' ? 'Payée' : 'Non payée'}
             </span>
           </div>
 
-          {/* Émetteur */}
           {plombier && (
             <div className="mb-6">
               <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Émetteur</h3>
@@ -322,25 +329,18 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
                 {plombier.nom_entreprise && (
                   <p className="font-bold text-gray-800">
                     {plombier.nom_entreprise}
-                    {plombier.forme_juridique && (
-                      <span className="font-normal text-gray-500 text-sm ml-2">— {plombier.forme_juridique}</span>
-                    )}
+                    {plombier.forme_juridique && <span className="font-normal text-gray-500 text-sm ml-2">— {plombier.forme_juridique}</span>}
                   </p>
                 )}
                 <p className="font-semibold text-gray-700">{plombier.prenom || ''} {plombier.nom || ''}</p>
                 <p className="text-gray-500 text-sm">{plombier.adresse || ''}</p>
                 <p className="text-gray-500 text-sm">SIRET : {plombier.siret || ''}</p>
-                {plombier.tva_intracom && (
-                  <p className="text-gray-500 text-sm">N° TVA : {plombier.tva_intracom}</p>
-                )}
-                {plombier.numero_rcs && (
-                  <p className="text-gray-500 text-sm">{plombier.numero_rcs}</p>
-                )}
+                {plombier.tva_intracom && <p className="text-gray-500 text-sm">N° TVA : {plombier.tva_intracom}</p>}
+                {plombier.numero_rcs && <p className="text-gray-500 text-sm">{plombier.numero_rcs}</p>}
               </div>
             </div>
           )}
 
-          {/* Client */}
           <div className="mb-6">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Client</h3>
             <div className="bg-gray-50 p-4 rounded-xl">
@@ -349,7 +349,6 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
             </div>
           </div>
 
-          {/* Prestations */}
           <div className="mb-6">
             <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Prestations</h3>
             <div className="overflow-x-auto">
@@ -376,7 +375,6 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
             </div>
           </div>
 
-          {/* Totaux */}
           <div className="flex justify-end mb-6">
             <div className="w-full sm:w-80 space-y-2">
               <div className="flex justify-between text-gray-600">
@@ -394,7 +392,6 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
             </div>
           </div>
 
-          {/* IBAN */}
           {plombier?.iban && (
             <div className="mb-4 p-4 bg-green-50 rounded-xl border border-green-100">
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Règlement par virement</p>
@@ -402,14 +399,9 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
             </div>
           )}
 
-          {/* Mentions légales */}
           <div className="pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
-            <p>
-              Paiement sous {plombier?.delai_paiement ?? 30} jours à compter de la date d'émission — Échéance le {dateEcheance()}.
-            </p>
-            <p>
-              En cas de retard, pénalités au taux de {plombier?.taux_penalite || '3 fois le taux légal'} + indemnité forfaitaire de recouvrement de 40 € (art. L441-10 Code de Commerce).
-            </p>
+            <p>Paiement sous {plombier?.delai_paiement ?? 30} jours à compter de la date d'émission — Échéance le {dateEcheance()}.</p>
+            <p>En cas de retard, pénalités au taux de {plombier?.taux_penalite || '3 fois le taux légal'} + indemnité forfaitaire de recouvrement de 40 € (art. L441-10 Code de Commerce).</p>
             <p>Pas d'escompte pour règlement anticipé.</p>
           </div>
         </div>

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Quote, QuoteItem, Plombier } from '../lib/types';
-import { ArrowLeft, FileText, Mail, Link } from 'lucide-react';
+import { ArrowLeft, FileText, Mail, Link, Download } from 'lucide-react';
+import { pdf } from '@react-pdf/renderer';
+import DevisPDF from './DevisPDF';
 
 interface QuotePreviewProps {
   quote: Quote;
@@ -30,6 +32,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
   const [toast, setToast] = useState<{ message: string; ok: boolean } | null>(null);
   const [acceptLoading, setAcceptLoading] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
+  const [generatingPDF, setGeneratingPDF] = useState(false);
 
   const tvaTaux = quote.tva_rate ?? 0.10;
   const tvaPct = (tvaTaux * 100).toFixed(1);
@@ -57,7 +60,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       if (!userId) return;
       const { data, error } = await supabase
         .from('plombiers')
-        .select('id, nom, prenom, adresse, siret, nom_entreprise')
+        .select('*')
         .eq('id', userId)
         .single();
       if (error) throw error;
@@ -171,6 +174,52 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
     setTimeout(() => setLinkCopied(false), 3000);
   };
 
+  const downloadPDF = async () => {
+    setGeneratingPDF(true);
+    try {
+      const dateEmission = quote.date_emission
+        ? new Date(quote.date_emission).toLocaleDateString('fr-FR')
+        : quote.created_at
+          ? new Date(quote.created_at).toLocaleDateString('fr-FR')
+          : '-';
+
+      const dateValidite = quote.date_emission
+        ? new Date(new Date(quote.date_emission).getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR')
+        : undefined;
+
+      const blob = await pdf(
+        <DevisPDF
+          numero={quote.numero ?? quote.id?.slice(0, 8).toUpperCase() ?? 'DEVIS'}
+          dateEmission={dateEmission}
+          dateValidite={dateValidite}
+          clientNom={quote.client_name}
+          clientAdresse={quote.client_address}
+          plombier={plombier}
+          lignes={items}
+          totalHT={quote.total_ht}
+          tva={quote.tva}
+          tvaPct={tvaPct}
+          totalTTC={quote.total_ttc}
+          notes={quote.notes}
+          signe_par_client={quote.signe_par_client}
+          date_signature={quote.date_signature}
+        />
+      ).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Devis-${quote.client_name}-${quote.numero ?? quote.id?.slice(0, 8)}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Erreur PDF:', err);
+      alert('Erreur lors de la génération du PDF.');
+    } finally {
+      setGeneratingPDF(false);
+    }
+  };
+
   const getTVA = () => quote.total_ht * tvaTaux;
 
   const getMentionLegale = () => {
@@ -213,14 +262,12 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
         <h1 style="color: #2563eb; margin-bottom: 20px;">DEVIS</h1>
         <p style="color: #6b7280;">Date : ${quote.date_emission ? new Date(quote.date_emission).toLocaleDateString('fr-FR') : quote.created_at ? new Date(quote.created_at).toLocaleDateString('fr-FR') : '-'}</p>
         <p style="color: #6b7280; font-size: 14px;">Référence : ${quote.numero ?? quote.id?.slice(0, 8).toUpperCase() ?? '-'}</p>
-
         <div style="margin: 20px 0; padding: 15px; background: #f9fafb; border-radius: 4px;">
           <h3 style="margin: 0 0 10px 0; color: #374151;">Informations Client</h3>
           <p style="margin: 0; font-weight: 600;">${quote.client_name}</p>
           <p style="margin: 5px 0 0 0; color: #6b7280;">${quote.client_address}</p>
         </div>
         ${plombierBlock}
-
         <h3 style="margin: 25px 0 10px 0; color: #374151;">Détail des Prestations</h3>
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
           <thead>
@@ -233,15 +280,12 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
           </thead>
           <tbody>${lignesRows}</tbody>
         </table>
-
         ${quote.notes ? `<div style="margin: 20px 0; padding: 15px; background: #fffbeb; border-left: 4px solid #facc15; border-radius: 4px;"><p style="margin: 0; color: #78350f;">${quote.notes}</p></div>` : ''}
-
         <div style="border-top: 2px solid #2563eb; padding-top: 15px; margin-top: 20px;">
           <p style="margin: 5px 0;"><span style="color: #4b5563;">Total HT :</span> <strong>${quote.total_ht.toFixed(2)} €</strong></p>
           <p style="margin: 5px 0;"><span style="color: #4b5563;">TVA (${tvaPct}%) :</span> <strong>${getTVA().toFixed(2)} €</strong></p>
           <p style="margin: 15px 0 5px 0; font-size: 18px;"><span style="color: #2563eb; font-weight: bold;">Total TTC :</span> <strong>${quote.total_ttc.toFixed(2)} €</strong></p>
         </div>
-
         <p style="margin-top: 30px; font-size: 12px; color: #9ca3af; text-align: center;">Devis valable 30 jours à compter de la date d'émission. ${getMentionLegale()}.</p>
       </div>
     `;
@@ -249,15 +293,9 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
 
   const sendEmail = async () => {
     const email = clientEmail.trim();
-    if (!email) {
-      setEmailError('Veuillez saisir une adresse email valide.');
-      return;
-    }
+    if (!email) { setEmailError('Veuillez saisir une adresse email valide.'); return; }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      setEmailError('Adresse email invalide.');
-      return;
-    }
+    if (!emailRegex.test(email)) { setEmailError('Adresse email invalide.'); return; }
 
     setEmailError(null);
     setSendingEmail(true);
@@ -360,6 +398,16 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
               <p className="text-gray-600 text-sm">
                 Référence : {quote.numero ?? quote.id?.slice(0, 8).toUpperCase() ?? '-'}
               </p>
+              {quote.signe_par_client && (
+                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
+                  ✅ Signé électroniquement par le client
+                  {quote.date_signature && (
+                    <span className="font-normal">
+                      {' '}le {new Date(quote.date_signature).toLocaleDateString('fr-FR')}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="text-right">
@@ -367,16 +415,10 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
 
               {status === 'brouillon' && (
                 <div className="flex flex-wrap gap-2 justify-end">
-                  <button
-                    onClick={() => updateStatus('envoyé')}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
-                  >
+                  <button onClick={() => updateStatus('envoyé')} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition">
                     Marquer comme envoyé
                   </button>
-                  <button
-                    onClick={() => setShowCancelConfirm(true)}
-                    className="px-4 py-2 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition"
-                  >
+                  <button onClick={() => setShowCancelConfirm(true)} className="px-4 py-2 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition">
                     Annuler
                   </button>
                 </div>
@@ -384,23 +426,13 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
 
               {status === 'envoyé' && (
                 <div className="flex flex-wrap gap-2 justify-end">
-                  <button
-                    onClick={handleAcceptQuote}
-                    disabled={acceptLoading}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50"
-                  >
+                  <button onClick={handleAcceptQuote} disabled={acceptLoading} className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50">
                     {acceptLoading ? 'Génération...' : 'Accepté'}
                   </button>
-                  <button
-                    onClick={() => updateStatus('refusé')}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition"
-                  >
+                  <button onClick={() => updateStatus('refusé')} className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition">
                     Refusé
                   </button>
-                  <button
-                    onClick={() => updateStatus('brouillon')}
-                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition"
-                  >
+                  <button onClick={() => updateStatus('brouillon')} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition">
                     ← Retour
                   </button>
                 </div>
@@ -413,38 +445,22 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                       <span className={`inline-block px-4 py-2 rounded-lg font-semibold ${status === 'accepté' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                         {status === 'accepté' ? 'Accepté' : 'Refusé'}
                       </span>
-                      <button
-                        onClick={() => setShowStatusEdit(true)}
-                        className="px-3 py-2 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition"
-                      >
+                      <button onClick={() => setShowStatusEdit(true)} className="px-3 py-2 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition">
                         Modifier
                       </button>
                     </div>
                   ) : (
                     <div className="flex flex-wrap gap-2 justify-end">
-                      <button
-                        onClick={() => { updateStatus('brouillon'); setShowStatusEdit(false); }}
-                        className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition text-sm"
-                      >
+                      <button onClick={() => { updateStatus('brouillon'); setShowStatusEdit(false); }} className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition text-sm">
                         Brouillon
                       </button>
-                      <button
-                        onClick={handleAcceptQuote}
-                        disabled={acceptLoading}
-                        className="px-3 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition text-sm disabled:opacity-50"
-                      >
+                      <button onClick={handleAcceptQuote} disabled={acceptLoading} className="px-3 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition text-sm disabled:opacity-50">
                         {acceptLoading ? '...' : 'Accepté'}
                       </button>
-                      <button
-                        onClick={() => { updateStatus('refusé'); setShowStatusEdit(false); }}
-                        className="px-3 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition text-sm"
-                      >
+                      <button onClick={() => { updateStatus('refusé'); setShowStatusEdit(false); }} className="px-3 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition text-sm">
                         Refusé
                       </button>
-                      <button
-                        onClick={() => setShowStatusEdit(false)}
-                        className="px-3 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition text-sm"
-                      >
+                      <button onClick={() => setShowStatusEdit(false)} className="px-3 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition text-sm">
                         Annuler
                       </button>
                     </div>
@@ -458,12 +474,8 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             <div className="mb-8">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">Émetteur du devis</h3>
               <div className="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
-                {plombier.nom_entreprise && (
-                  <p className="font-semibold text-gray-800 text-lg">{plombier.nom_entreprise}</p>
-                )}
-                <p className="font-semibold text-gray-800 text-lg">
-                  {plombier.prenom || ''} {plombier.nom || ''}
-                </p>
+                {plombier.nom_entreprise && <p className="font-semibold text-gray-800 text-lg">{plombier.nom_entreprise}</p>}
+                <p className="font-semibold text-gray-800 text-lg">{plombier.prenom || ''} {plombier.nom || ''}</p>
                 <p className="text-gray-600">{plombier.adresse || ''}</p>
                 <p className="text-gray-600 mt-1">SIRET : {plombier.siret || ''}</p>
               </div>
@@ -538,14 +550,21 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
           </div>
         </div>
 
-        {/* Boutons action */}
         <div className="text-center space-y-4">
           <div className="flex flex-wrap justify-center gap-3">
+            <button
+              onClick={downloadPDF}
+              disabled={generatingPDF}
+              className="flex items-center px-8 py-3 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition font-semibold shadow-md disabled:opacity-50"
+            >
+              <Download className="w-5 h-5 mr-2" />
+              {generatingPDF ? 'Génération...' : 'Télécharger PDF'}
+            </button>
             <button
               onClick={() => window.print()}
               className="flex items-center px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold shadow-md"
             >
-              Imprimer le devis
+              Imprimer
             </button>
             <button
               onClick={() => { setShowEmailForm(!showEmailForm); setEmailError(null); setClientEmail(''); }}
@@ -579,18 +598,10 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
               </div>
               {emailError && <p className="text-red-600 text-sm mb-3">{emailError}</p>}
               <div className="flex gap-2">
-                <button
-                  onClick={sendEmail}
-                  disabled={sendingEmail}
-                  className="flex-1 flex items-center justify-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition font-medium"
-                >
+                <button onClick={sendEmail} disabled={sendingEmail} className="flex-1 flex items-center justify-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition font-medium">
                   {sendingEmail ? 'Envoi en cours...' : 'Envoyer'}
                 </button>
-                <button
-                  onClick={() => { setShowEmailForm(false); setEmailError(null); setClientEmail(''); }}
-                  disabled={sendingEmail}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition"
-                >
+                <button onClick={() => { setShowEmailForm(false); setEmailError(null); setClientEmail(''); }} disabled={sendingEmail} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition">
                   Annuler
                 </button>
               </div>
@@ -604,19 +615,13 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
           <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
             <h3 className="text-lg font-semibold text-gray-800 mb-2">Annuler ce devis ?</h3>
             <p className="text-gray-500 text-sm mb-6">
-              Le devis sera marqué comme <strong className="text-red-600">refusé</strong>. Cette action peut être difficile à annuler.
+              Le devis sera marqué comme <strong className="text-red-600">refusé</strong>.
             </p>
             <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setShowCancelConfirm(false)}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
-              >
+              <button onClick={() => setShowCancelConfirm(false)} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition">
                 Retour
               </button>
-              <button
-                onClick={handleCancelConfirmed}
-                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition"
-              >
+              <button onClick={handleCancelConfirmed} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition">
                 Confirmer l'annulation
               </button>
             </div>
@@ -631,28 +636,14 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             header, button { display: none !important; }
             body { background: white !important; }
             .quote-main { padding: 0 1rem !important; }
-            .quote-content {
-              box-shadow: none !important;
-              padding: 0 !important;
-              margin: 0 !important;
-              page-break-inside: avoid;
-            }
+            .quote-content { box-shadow: none !important; padding: 0 !important; margin: 0 !important; page-break-inside: avoid; }
             .quote-content [class*="mb-8"] { margin-bottom: 10px !important; }
             .quote-content [class*="mb-4"] { margin-bottom: 6px !important; }
             .quote-content [class*="mb-3"] { margin-bottom: 4px !important; }
             .quote-content [class*="mb-2"] { margin-bottom: 2px !important; }
             .quote-content [class*="py-3"] { padding-top: 4px !important; padding-bottom: 4px !important; }
-            .quote-content [class*="py-6"], .quote-content [class*="pt-6"], .quote-content [class*="pb-6"] {
-              padding-top: 6px !important;
-              padding-bottom: 6px !important;
-            }
             .quote-content table { font-size: 11px; }
-            .quote-legal {
-              margin-top: 6px !important;
-              padding-top: 4px !important;
-              font-size: 9px !important;
-              line-height: 1.2 !important;
-            }
+            .quote-legal { margin-top: 6px !important; padding-top: 4px !important; font-size: 9px !important; }
           }
         `}
       </style>
