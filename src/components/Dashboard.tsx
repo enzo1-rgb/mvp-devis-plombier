@@ -3,11 +3,12 @@ import { supabase } from "../lib/supabase";
 import { Quote } from "../lib/types";
 import {
   Plus, User, Wrench, LogOut, Search,
-  Receipt, CheckCircle, Eye, Edit2, Trash2,
+  Receipt, CheckCircle, Eye, Edit2, Trash2, TrendingUp,
 } from "lucide-react";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import Profile from "./Profile";
 import Prestations from "./Prestations";
+import Analytics from "./Analytics";
 
 interface DevisRow {
   id: string;
@@ -68,6 +69,7 @@ export default function Dashboard({
   const [viewMode, setViewMode] = useState<"devis" | "factures">("devis");
   const [showProfile, setShowProfile] = useState(false);
   const [showPrestations, setShowPrestations] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -174,6 +176,7 @@ export default function Dashboard({
 
   if (showProfile) return <Profile user={user} onBack={() => setShowProfile(false)} />;
   if (showPrestations) return <Prestations user={user} onBack={() => setShowPrestations(false)} />;
+  if (showAnalytics) return <Analytics user={user} onBack={() => setShowAnalytics(false)} />;
 
   const filteredQuotes = quotes.filter((q) =>
     q.client_name.toLowerCase().includes(search.toLowerCase())
@@ -215,6 +218,9 @@ export default function Dashboard({
             >
               <Receipt className="w-5 h-5" />
               <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-widest">Factures</span>
+            </button>
+            <button onClick={() => setShowAnalytics(true)} className="p-2 text-slate-400 hover:text-white">
+              <TrendingUp className="w-5 h-5" />
             </button>
             <button onClick={() => setShowPrestations(true)} className="p-2 text-slate-400 hover:text-white">
               <Wrench className="w-5 h-5" />
