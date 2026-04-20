@@ -4,11 +4,14 @@ import { Quote } from "../lib/types";
 import {
   Plus, User, Wrench, LogOut, Search,
   Receipt, CheckCircle, Eye, Edit2, Trash2, TrendingUp,
+  ChevronLeft, ChevronRight, Filter,
 } from "lucide-react";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import Profile from "./Profile";
 import Prestations from "./Prestations";
 import Analytics from "./Analytics";
+
+const PAGE_SIZE = 10;
 
 interface DevisRow {
   id: string;
@@ -57,6 +60,10 @@ interface DashboardProps {
   onViewInvoice: (invoice: any) => void;
 }
 
+type StatutFilter = 'tous' | 'brouillon' | 'envoyé' | 'accepté' | 'refusé';
+type PeriodeFilter = 'tout' | 'mois' | '3mois';
+type StatutFactureFilter = 'tous' | 'payée' | 'non_payée';
+
 export default function Dashboard({
   user,
   onCreateQuote,
@@ -77,10 +84,29 @@ export default function Dashboard({
   const [toast, setToast] = useState<{ message: string; ok: boolean } | null>(null);
   const [acceptLoading, setAcceptLoading] = useState<string | null>(null);
 
+  // Filtres devis
+  const [statutFilter, setStatutFilter] = useState<StatutFilter>('tous');
+  const [periodeFilter, setPeriodeFilter] = useState<PeriodeFilter>('tout');
+  const [pageDevis, setPageDevis] = useState(1);
+
+  // Filtres factures
+  const [statutFactureFilter, setStatutFactureFilter] = useState<StatutFactureFilter>('tous');
+  const [pageFactures, setPageFactures] = useState(1);
+
+  const [showFilters, setShowFilters] = useState(false);
+
   useEffect(() => {
     loadData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewMode]);
+
+  useEffect(() => {
+    setPageDevis(1);
+  }, [search, statutFilter, periodeFilter]);
+
+  useEffect(() => {
+    setPageFactures(1);
+  }, [search, statutFactureFilter]);
 
   useEffect(() => {
     if (!toast) return;
@@ -116,10 +142,7 @@ export default function Dashboard({
     setAcceptLoading(quote.id ?? null);
     try {
       const { data: existing } = await supabase
-        .from("factures")
-        .select("id")
-        .eq("devis_id", quote.id)
-        .maybeSingle();
+        .from("factures").select("id").eq("devis_id", quote.id).maybeSingle();
 
       if (existing) {
         setToast({ message: "Une facture existe déjà pour ce devis.", ok: false });
@@ -128,9 +151,7 @@ export default function Dashboard({
       }
 
       const { error: updateError } = await supabase
-        .from("devis")
-        .update({ statut: "accepté" })
-        .eq("id", quote.id);
+        .from("devis").update({ statut: "accepté" }).eq("id", quote.id);
       if (updateError) throw updateError;
 
       const { data: numData, error: numError } = await supabase.rpc('generate_numero_facture', {
@@ -164,10 +185,7 @@ export default function Dashboard({
 
   const confirmDelete = async () => {
     if (!quoteToDelete) return;
-    const { error } = await supabase
-      .from("devis")
-      .delete()
-      .eq("id", quoteToDelete.id);
+    const { error } = await supabase.from("devis").delete().eq("id", quoteToDelete.id);
     if (!error) {
       setQuotes(quotes.filter((q) => q.id !== quoteToDelete.id));
       setQuoteToDelete(null);
@@ -178,14 +196,41 @@ export default function Dashboard({
   if (showPrestations) return <Prestations user={user} onBack={() => setShowPrestations(false)} />;
   if (showAnalytics) return <Analytics user={user} onBack={() => setShowAnalytics(false)} />;
 
-  const filteredQuotes = quotes.filter((q) =>
-    q.client_name.toLowerCase().includes(search.toLowerCase())
-  );
-  const filteredInvoices = invoices.filter(
-    (inv) =>
+  // ── Filtrage devis ──────────────────────────────────────────────────────────
+  const now = new Date();
+  const filteredQuotes = quotes.filter((q) => {
+    const matchSearch = q.client_name.toLowerCase().includes(search.toLowerCase()) ||
+      (q.numero ?? '').toLowerCase().includes(search.toLowerCase());
+    const matchStatut = statutFilter === 'tous' || q.status === statutFilter;
+    let matchPeriode = true;
+    if (periodeFilter === 'mois') {
+      const debut = new Date(now.getFullYear(), now.getMonth(), 1);
+      matchPeriode = new Date(q.created_at ?? '') >= debut;
+    } else if (periodeFilter === '3mois') {
+      const debut = new Date(now.getFullYear(), now.getMonth() - 2, 1);
+      matchPeriode = new Date(q.created_at ?? '') >= debut;
+    }
+    return matchSearch && matchStatut && matchPeriode;
+  });
+
+  const totalPagesDevis = Math.max(1, Math.ceil(filteredQuotes.length / PAGE_SIZE));
+  const paginatedQuotes = filteredQuotes.slice((pageDevis - 1) * PAGE_SIZE, pageDevis * PAGE_SIZE);
+
+  // ── Filtrage factures ───────────────────────────────────────────────────────
+  const filteredInvoices = invoices.filter((inv) => {
+    const matchSearch =
       (inv.clients?.nom ?? "").toLowerCase().includes(search.toLowerCase()) ||
-      (inv.numero_facture ?? "").toLowerCase().includes(search.toLowerCase())
-  );
+      (inv.numero_facture ?? "").toLowerCase().includes(search.toLowerCase());
+    const matchStatut = statutFactureFilter === 'tous' || inv.statut === statutFactureFilter;
+    return matchSearch && matchStatut;
+  });
+
+  const totalPagesFactures = Math.max(1, Math.ceil(filteredInvoices.length / PAGE_SIZE));
+  const paginatedInvoices = filteredInvoices.slice((pageFactures - 1) * PAGE_SIZE, pageFactures * PAGE_SIZE);
+
+  const hasActiveFilters = viewMode === 'devis'
+    ? statutFilter !== 'tous' || periodeFilter !== 'tout'
+    : statutFactureFilter !== 'tous';
 
   return (
     <div className="min-h-screen pb-28 bg-slate-50 font-sans">
@@ -211,9 +256,7 @@ export default function Dashboard({
             <button
               onClick={() => setViewMode(viewMode === "devis" ? "factures" : "devis")}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all ${
-                viewMode === "factures"
-                  ? "bg-purple-600 text-white shadow-md"
-                  : "text-slate-400 hover:bg-white/10"
+                viewMode === "factures" ? "bg-purple-600 text-white shadow-md" : "text-slate-400 hover:bg-white/10"
               }`}
             >
               <Receipt className="w-5 h-5" />
@@ -236,31 +279,141 @@ export default function Dashboard({
       </header>
 
       <main className="max-w-2xl mx-auto px-4 pt-6">
-        <h1 className="text-2xl font-black text-slate-900 mb-6">
+        <h1 className="text-2xl font-black text-slate-900 mb-4">
           {viewMode === "devis" ? "Mes Devis" : "Mes Factures"}
         </h1>
 
-        <div className="relative mb-6">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            className="input-field pl-11"
-            placeholder={viewMode === "devis" ? "Rechercher un client…" : "Rechercher une facture ou un client…"}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        {/* Barre recherche + bouton filtres */}
+        <div className="flex gap-2 mb-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              className="input-field pl-11"
+              placeholder={viewMode === "devis" ? "Rechercher un client…" : "Rechercher une facture ou un client…"}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl font-bold text-sm border transition-all ${
+              hasActiveFilters
+                ? 'bg-blue-600 text-white border-blue-600'
+                : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'
+            }`}
+          >
+            <Filter className="w-4 h-4" />
+            <span className="hidden sm:inline">Filtres</span>
+            {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-white inline-block" />}
+          </button>
         </div>
+
+        {/* Panneau filtres */}
+        {showFilters && (
+          <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-4 space-y-4 shadow-sm">
+            {viewMode === 'devis' ? (
+              <>
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Statut</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(['tous', 'brouillon', 'envoyé', 'accepté', 'refusé'] as StatutFilter[]).map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setStatutFilter(s)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all capitalize ${
+                          statutFilter === s
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                        }`}
+                      >
+                        {s === 'tous' ? 'Tous' : s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Période</p>
+                  <div className="flex flex-wrap gap-2">
+                    {([
+                      { val: 'tout', label: 'Tout' },
+                      { val: 'mois', label: 'Ce mois' },
+                      { val: '3mois', label: '3 derniers mois' },
+                    ] as { val: PeriodeFilter; label: string }[]).map((p) => (
+                      <button
+                        key={p.val}
+                        onClick={() => setPeriodeFilter(p.val)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                          periodeFilter === p.val
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Statut paiement</p>
+                <div className="flex flex-wrap gap-2">
+                  {([
+                    { val: 'tous', label: 'Toutes' },
+                    { val: 'payée', label: 'Payées' },
+                    { val: 'non_payée', label: 'Non payées' },
+                  ] as { val: StatutFactureFilter; label: string }[]).map((s) => (
+                    <button
+                      key={s.val}
+                      onClick={() => setStatutFactureFilter(s.val)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                        statutFactureFilter === s.val
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {hasActiveFilters && (
+              <button
+                onClick={() => {
+                  setStatutFilter('tous');
+                  setPeriodeFilter('tout');
+                  setStatutFactureFilter('tous');
+                }}
+                className="text-xs text-red-500 font-bold hover:underline"
+              >
+                Réinitialiser les filtres
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Compteur résultats */}
+        <p className="text-xs text-slate-400 font-medium mb-3">
+          {viewMode === 'devis'
+            ? `${filteredQuotes.length} devis${filteredQuotes.length > 1 ? '' : ''}`
+            : `${filteredInvoices.length} facture${filteredInvoices.length > 1 ? 's' : ''}`}
+        </p>
 
         <div className="space-y-4">
           {loading ? (
             <div className="text-center py-12 text-slate-400">Chargement…</div>
           ) : viewMode === "devis" ? (
-            filteredQuotes.length === 0 ? (
+            paginatedQuotes.length === 0 ? (
               <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200">
                 <p className="text-slate-400 font-medium">Aucun devis trouvé</p>
-                <p className="text-slate-300 text-sm mt-1">Appuyez sur + pour créer votre premier devis</p>
+                <p className="text-slate-300 text-sm mt-1">
+                  {hasActiveFilters ? 'Essayez de modifier vos filtres' : 'Appuyez sur + pour créer votre premier devis'}
+                </p>
               </div>
             ) : (
-              filteredQuotes.map((quote) => (
+              paginatedQuotes.map((quote) => (
                 <div key={quote.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                   <div className="p-5">
                     <div className="flex justify-between items-start mb-2">
@@ -285,16 +438,10 @@ export default function Dashboard({
                   </div>
 
                   <div className="flex border-t border-slate-50 bg-slate-50/30">
-                    <button
-                      onClick={() => onViewQuote(quote)}
-                      className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-blue-600 border-r border-slate-50"
-                    >
+                    <button onClick={() => onViewQuote(quote)} className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-blue-600 border-r border-slate-50">
                       <Eye className="w-4 h-4" /> Voir
                     </button>
-                    <button
-                      onClick={() => onEditQuote(quote)}
-                      className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-blue-600 border-r border-slate-50"
-                    >
+                    <button onClick={() => onEditQuote(quote)} className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-blue-600 border-r border-slate-50">
                       <Edit2 className="w-4 h-4" /> Modifier
                     </button>
                     {quote.status === "envoyé" && (
@@ -307,10 +454,7 @@ export default function Dashboard({
                         {acceptLoading === quote.id ? "…" : "Accepter"}
                       </button>
                     )}
-                    <button
-                      onClick={() => setQuoteToDelete(quote)}
-                      className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-300 hover:text-red-500"
-                    >
+                    <button onClick={() => setQuoteToDelete(quote)} className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-300 hover:text-red-500">
                       <Trash2 className="w-4 h-4" /> Suppr.
                     </button>
                   </div>
@@ -318,16 +462,16 @@ export default function Dashboard({
               ))
             )
           ) : (
-            filteredInvoices.length === 0 ? (
+            paginatedInvoices.length === 0 ? (
               <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-slate-200">
                 <Receipt className="w-12 h-12 mx-auto text-slate-200 mb-3" />
                 <p className="text-slate-400 font-medium">Aucune facture</p>
                 <p className="text-slate-300 text-sm mt-1 px-8">
-                  Les factures sont générées automatiquement quand un devis est accepté
+                  {hasActiveFilters ? 'Essayez de modifier vos filtres' : 'Les factures sont générées automatiquement quand un devis est accepté'}
                 </p>
               </div>
             ) : (
-              filteredInvoices.map((inv) => (
+              paginatedInvoices.map((inv) => (
                 <div key={inv.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                   <div className="p-5 flex items-center gap-4">
                     <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -345,10 +489,7 @@ export default function Dashboard({
                     </div>
                   </div>
                   <div className="flex border-t border-slate-50 bg-slate-50/30">
-                    <button
-                      onClick={() => onViewInvoice(inv)}
-                      className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-purple-600 transition"
-                    >
+                    <button onClick={() => onViewInvoice(inv)} className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-purple-600 transition">
                       <Eye className="w-4 h-4" /> Voir la facture
                     </button>
                   </div>
@@ -357,6 +498,51 @@ export default function Dashboard({
             )
           )}
         </div>
+
+        {/* Pagination */}
+        {viewMode === 'devis' && totalPagesDevis > 1 && (
+          <div className="flex items-center justify-center gap-3 mt-6">
+            <button
+              onClick={() => setPageDevis(p => Math.max(1, p - 1))}
+              disabled={pageDevis === 1}
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-blue-300 disabled:opacity-30 transition"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <span className="text-sm font-bold text-slate-600">
+              {pageDevis} / {totalPagesDevis}
+            </span>
+            <button
+              onClick={() => setPageDevis(p => Math.min(totalPagesDevis, p + 1))}
+              disabled={pageDevis === totalPagesDevis}
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-blue-300 disabled:opacity-30 transition"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+
+        {viewMode === 'factures' && totalPagesFactures > 1 && (
+          <div className="flex items-center justify-center gap-3 mt-6">
+            <button
+              onClick={() => setPageFactures(p => Math.max(1, p - 1))}
+              disabled={pageFactures === 1}
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-purple-300 disabled:opacity-30 transition"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <span className="text-sm font-bold text-slate-600">
+              {pageFactures} / {totalPagesFactures}
+            </span>
+            <button
+              onClick={() => setPageFactures(p => Math.min(totalPagesFactures, p + 1))}
+              disabled={pageFactures === totalPagesFactures}
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-purple-300 disabled:opacity-30 transition"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+        )}
       </main>
 
       {quoteToDelete && (
