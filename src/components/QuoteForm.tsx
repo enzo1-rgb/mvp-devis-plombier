@@ -297,18 +297,18 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
 
   if (loadingQuote) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-600">Chargement du devis...</p>
+          <p className="mt-4 text-slate-600">Chargement du devis...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-blue-600 text-white shadow-lg">
+    <div className="min-h-screen bg-slate-50">
+      <header className="bg-slate-900 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center">
             <button onClick={onBack} className="mr-4 p-2 hover:bg-blue-700 rounded-lg transition">
@@ -325,25 +325,25 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
 
         {/* Informations client */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Informations Client</h2>
+          <h2 className="text-xl font-semibold text-slate-800 mb-4">Informations Client</h2>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Nom du client</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Nom du client</label>
               <input
                 type="text"
                 value={clientName}
                 onChange={(e) => setClientName(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Jean Dupont"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Adresse du client</label>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Adresse du client</label>
               <input
                 type="text"
                 value={clientAddress}
                 onChange={(e) => setClientAddress(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="123 Rue de la Paix, 75000 Paris"
               />
             </div>
@@ -353,7 +353,7 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
         {/* Prestations */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">Prestations</h2>
+            <h2 className="text-xl font-semibold text-slate-800">Prestations</h2>
             <button
               onClick={addItem}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
@@ -365,7 +365,7 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
 
           {!loadingPrestations && prestations.length > 0 && (
             <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-              <p className="text-sm font-medium text-gray-700 mb-2">Prestations rapides :</p>
+              <p className="text-sm font-medium text-slate-700 mb-2">Prestations rapides :</p>
               <div className="flex flex-wrap gap-2">
                 {prestations.map((p) => (
                   <button
@@ -381,8 +381,8 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
           )}
 
           {!loadingPrestations && prestations.length === 0 && (
-            <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600">
+            <div className="mb-4 p-4 bg-slate-50 rounded-lg">
+              <p className="text-sm text-slate-600">
                 Aucune prestation en base. Ajoutez des prestations manuellement ci-dessous.
               </p>
             </div>
@@ -390,44 +390,44 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
 
           <div className="space-y-4">
             {items.map((item, index) => (
-              <div key={index} className="border border-gray-200 rounded-lg p-4">
+              <div key={index} className="border border-slate-200 rounded-lg p-4">
                 <div className="grid gap-4 sm:grid-cols-12">
                   <div className="sm:col-span-5">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
                     <input
                       type="text"
                       value={item.description}
                       onChange={(e) => updateItem(index, 'description', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       placeholder="Prestation"
                     />
                   </div>
                   <div className="sm:col-span-3">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Prix unitaire (€)</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Prix unitaire (€)</label>
                     <input
                       type="number"
                       value={item.prix_unitaire}
                       onChange={(e) => updateItem(index, 'prix_unitaire', parseFloat(e.target.value) || 0)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       min="0"
                       step="0.01"
                     />
                   </div>
                   <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Quantité</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">Quantité</label>
                     <input
                       type="number"
                       value={item.quantite}
                       onChange={(e) => updateItem(index, 'quantite', parseFloat(e.target.value) || 0)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       min="0.01"
                       step="0.01"
                     />
                   </div>
                   <div className="sm:col-span-2 flex items-end">
                     <div className="w-full">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Total HT</label>
-                      <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg font-semibold">
+                      <label className="block text-sm font-medium text-slate-700 mb-2">Total HT</label>
+                      <div className="px-3 py-2 bg-slate-100 border border-slate-300 rounded-lg font-semibold">
                         {item.montant_ht.toFixed(2)} €
                       </div>
                     </div>
@@ -448,11 +448,11 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
 
         {/* Notes */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Notes</h2>
+          <h2 className="text-xl font-semibold text-slate-800 mb-4">Notes</h2>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             rows={4}
             placeholder="Informations supplémentaires..."
           />
@@ -460,16 +460,16 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
 
         {/* Récapitulatif */}
         <div className="bg-blue-50 rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Récapitulatif</h2>
+          <h2 className="text-xl font-semibold text-slate-800 mb-4">Récapitulatif</h2>
 
           <div className="mb-5">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
               Taux de TVA applicable
             </label>
             <select
               value={tvaTaux}
               onChange={(e) => setTvaTaux(parseFloat(e.target.value))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
+              className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white"
             >
               {TVA_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>
@@ -481,11 +481,11 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
 
           <div className="space-y-2">
             <div className="flex justify-between text-lg">
-              <span className="text-gray-700">Total HT</span>
+              <span className="text-slate-700">Total HT</span>
               <span className="font-semibold">{getTotalHT().toFixed(2)} €</span>
             </div>
             <div className="flex justify-between text-lg">
-              <span className="text-gray-700">TVA ({(tvaTaux * 100).toFixed(1)}%)</span>
+              <span className="text-slate-700">TVA ({(tvaTaux * 100).toFixed(1)}%)</span>
               <span className="font-semibold">{getTVA().toFixed(2)} €</span>
             </div>
             <div className="border-t-2 border-blue-300 pt-2 flex justify-between text-2xl">

@@ -123,14 +123,14 @@ export default function Profile({ user, onBack }: ProfileProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <p className="text-gray-500">Chargement du profil...</p>
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <p className="text-slate-500">Chargement du profil...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
       <header className="bg-slate-900 text-white shadow-lg h-16 flex items-center px-4">
         <div className="max-w-2xl mx-auto w-full flex items-center gap-3">
           <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-lg transition">
@@ -145,75 +145,75 @@ export default function Profile({ user, onBack }: ProfileProps) {
         {/* ── Informations générales ── */}
         <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
           <div className="border-b pb-3">
-            <h2 className="text-base font-bold text-gray-900">Informations générales</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Apparaissent sur vos devis et factures</p>
+            <h2 className="text-base font-bold text-slate-900">Informations générales</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Apparaissent sur vos devis et factures</p>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nom de l'entreprise</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Nom de l'entreprise</label>
             <input
               type="text"
               value={profile.nom_entreprise}
               onChange={(e) => setProfile({ ...profile, nom_entreprise: e.target.value })}
               placeholder="Ex : Plomberie Dupont"
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Prénom</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Prénom</label>
               <input
                 type="text"
                 value={profile.prenom}
                 onChange={(e) => setProfile({ ...profile, prenom: e.target.value })}
                 placeholder="Jean"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Nom</label>
               <input
                 type="text"
                 value={profile.nom}
                 onChange={(e) => setProfile({ ...profile, nom: e.target.value })}
                 placeholder="Dupont"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email professionnel</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Email professionnel</label>
               <input
                 type="email"
                 value={profile.email}
                 onChange={(e) => setProfile({ ...profile, email: e.target.value })}
                 placeholder="jean@plomberie-dupont.fr"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Téléphone</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Téléphone</label>
               <input
                 type="tel"
                 value={profile.telephone}
                 onChange={(e) => setProfile({ ...profile, telephone: e.target.value })}
                 placeholder="06 12 34 56 78"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Adresse complète</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Adresse complète</label>
             <textarea
               value={profile.adresse}
               onChange={(e) => setProfile({ ...profile, adresse: e.target.value })}
               placeholder="24 avenue de la République, 75011 Paris"
               rows={2}
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
@@ -221,27 +221,27 @@ export default function Profile({ user, onBack }: ProfileProps) {
         {/* ── Informations légales ── */}
         <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
           <div className="border-b pb-3">
-            <h2 className="text-base font-bold text-gray-900">Informations légales</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Obligatoires sur les factures (art. L441-9 Code de Commerce)</p>
+            <h2 className="text-base font-bold text-slate-900">Informations légales</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Obligatoires sur les factures (art. L441-9 Code de Commerce)</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Numéro SIRET</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Numéro SIRET</label>
               <input
                 type="text"
                 value={profile.siret}
                 onChange={(e) => setProfile({ ...profile, siret: e.target.value })}
                 placeholder="123 456 789 00012"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Forme juridique</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Forme juridique</label>
               <select
                 value={profile.forme_juridique}
                 onChange={(e) => setProfile({ ...profile, forme_juridique: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               >
                 <option value="">— Sélectionner —</option>
                 {FORMES_JURIDIQUES.map((f) => (
@@ -253,7 +253,7 @@ export default function Profile({ user, onBack }: ProfileProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1">
                 N° TVA intracommunautaire
               </label>
               <input
@@ -261,18 +261,18 @@ export default function Profile({ user, onBack }: ProfileProps) {
                 value={profile.tva_intracom}
                 onChange={(e) => setProfile({ ...profile, tva_intracom: e.target.value })}
                 placeholder="FR 12 345678901"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <p className="text-xs text-gray-400 mt-1">Laisser vide si auto-entrepreneur non assujetti</p>
+              <p className="text-xs text-slate-400 mt-1">Laisser vide si auto-entrepreneur non assujetti</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">N° RCS / RNE</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">N° RCS / RNE</label>
               <input
                 type="text"
                 value={profile.numero_rcs}
                 onChange={(e) => setProfile({ ...profile, numero_rcs: e.target.value })}
                 placeholder="RCS Paris 123 456 789"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -281,43 +281,43 @@ export default function Profile({ user, onBack }: ProfileProps) {
         {/* ── Conditions de règlement ── */}
         <div className="bg-white rounded-2xl shadow-sm p-6 space-y-4">
           <div className="border-b pb-3">
-            <h2 className="text-base font-bold text-gray-900">Conditions de règlement</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Obligatoires sur les factures B2B en France</p>
+            <h2 className="text-base font-bold text-slate-900">Conditions de règlement</h2>
+            <p className="text-xs text-slate-400 mt-0.5">Obligatoires sur les factures B2B en France</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Délai de paiement (jours)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Délai de paiement (jours)</label>
               <input
                 type="number"
                 value={profile.delai_paiement}
                 onChange={(e) => setProfile({ ...profile, delai_paiement: parseInt(e.target.value) || 30 })}
                 min={0}
                 max={60}
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <p className="text-xs text-gray-400 mt-1">30 jours par défaut (max légal 60 jours)</p>
+              <p className="text-xs text-slate-400 mt-1">30 jours par défaut (max légal 60 jours)</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Taux pénalités de retard</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Taux pénalités de retard</label>
               <input
                 type="text"
                 value={profile.taux_penalite}
                 onChange={(e) => setProfile({ ...profile, taux_penalite: e.target.value })}
                 placeholder="3 fois le taux légal"
-                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">IBAN (pour le règlement)</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">IBAN (pour le règlement)</label>
             <input
               type="text"
               value={profile.iban}
               onChange={(e) => setProfile({ ...profile, iban: e.target.value })}
               placeholder="FR76 3000 6000 0112 3456 7890 189"
-              className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
             />
           </div>
         </div>

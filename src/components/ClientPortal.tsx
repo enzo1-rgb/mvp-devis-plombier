@@ -135,10 +135,10 @@ export default function ClientPortal({ token }: ClientPortalProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-gray-500">Chargement du devis...</p>
+          <p className="mt-4 text-slate-500">Chargement du devis...</p>
         </div>
       </div>
     );
@@ -146,13 +146,13 @@ export default function ClientPortal({ token }: ClientPortalProps) {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-md p-8 max-w-md w-full text-center">
           <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <XCircle className="w-8 h-8 text-red-500" />
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">Lien invalide</h1>
-          <p className="text-gray-500">{error}</p>
+          <h1 className="text-xl font-bold text-slate-900 mb-2">Lien invalide</h1>
+          <p className="text-slate-500">{error}</p>
         </div>
       </div>
     );
@@ -160,7 +160,7 @@ export default function ClientPortal({ token }: ClientPortalProps) {
 
   if (signed) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-md p-8 max-w-md w-full text-center">
           <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${signed === 'accepté' ? 'bg-green-50' : 'bg-red-50'}`}>
             {signed === 'accepté'
@@ -168,16 +168,16 @@ export default function ClientPortal({ token }: ClientPortalProps) {
               : <XCircle className="w-8 h-8 text-red-500" />
             }
           </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-2">
+          <h1 className="text-xl font-bold text-slate-900 mb-2">
             Devis {signed === 'accepté' ? 'accepté' : 'refusé'}
           </h1>
-          <p className="text-gray-500">
+          <p className="text-slate-500">
             {signed === 'accepté'
               ? 'Merci ! Votre accord a bien été enregistré. Vous serez contacté prochainement.'
               : 'Votre réponse a bien été enregistrée.'}
           </p>
           {plombier && (
-            <p className="text-sm text-gray-400 mt-4">
+            <p className="text-sm text-slate-400 mt-4">
               {plombier.nom_entreprise || `${plombier.prenom} ${plombier.nom}`}
               {plombier.telephone && ` — ${plombier.telephone}`}
             </p>
@@ -188,9 +188,9 @@ export default function ClientPortal({ token }: ClientPortalProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
 
-      <header className="bg-blue-600 text-white shadow-lg">
+      <header className="bg-slate-900 text-white shadow-lg">
         <div className="max-w-3xl mx-auto px-4 py-5 flex items-center gap-3">
           <FileText className="w-6 h-6 flex-shrink-0" />
           <div>
@@ -212,15 +212,15 @@ export default function ClientPortal({ token }: ClientPortalProps) {
 
         {plombier && (
           <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Votre prestataire</h2>
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Votre prestataire</h2>
             <div className="bg-blue-50 rounded-xl p-4 border-l-4 border-blue-600">
               {plombier.nom_entreprise && (
-                <p className="font-bold text-gray-800 text-lg">{plombier.nom_entreprise}</p>
+                <p className="font-bold text-slate-800 text-lg">{plombier.nom_entreprise}</p>
               )}
-              <p className="font-semibold text-gray-700">{plombier.prenom} {plombier.nom}</p>
-              {plombier.adresse && <p className="text-gray-500 text-sm">{plombier.adresse}</p>}
-              {plombier.siret && <p className="text-gray-500 text-sm">SIRET : {plombier.siret}</p>}
-              {plombier.tva_intracom && <p className="text-gray-500 text-sm">TVA : {plombier.tva_intracom}</p>}
+              <p className="font-semibold text-slate-700">{plombier.prenom} {plombier.nom}</p>
+              {plombier.adresse && <p className="text-slate-500 text-sm">{plombier.adresse}</p>}
+              {plombier.siret && <p className="text-slate-500 text-sm">SIRET : {plombier.siret}</p>}
+              {plombier.tva_intracom && <p className="text-slate-500 text-sm">TVA : {plombier.tva_intracom}</p>}
               <div className="flex gap-4 mt-2">
                 {plombier.telephone && (
                   <a href={`tel:${plombier.telephone}`} className="text-blue-600 text-sm font-medium hover:underline">
@@ -239,14 +239,14 @@ export default function ClientPortal({ token }: ClientPortalProps) {
 
         {client && (
           <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Destinataire</h2>
-            <p className="font-semibold text-gray-800">{client.nom}</p>
-            {client.adresse && <p className="text-gray-500 text-sm">{client.adresse}</p>}
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Destinataire</h2>
+            <p className="font-semibold text-slate-800">{client.nom}</p>
+            {client.adresse && <p className="text-slate-500 text-sm">{client.adresse}</p>}
           </div>
         )}
 
         <div className="bg-white rounded-2xl shadow-sm p-6">
-          <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Détail des prestations</h2>
+          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-4">Détail des prestations</h2>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -259,11 +259,11 @@ export default function ClientPortal({ token }: ClientPortalProps) {
               </thead>
               <tbody>
                 {lignes.map((l, i) => (
-                  <tr key={l.id} className={i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                    <td className="px-4 py-3 text-gray-800 text-sm">{l.description}</td>
-                    <td className="px-4 py-3 text-right text-gray-600 text-sm">{l.prix_unitaire.toFixed(2)} €</td>
-                    <td className="px-4 py-3 text-right text-gray-600 text-sm">{l.quantite}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-gray-800 text-sm">{l.montant_ht.toFixed(2)} €</td>
+                  <tr key={l.id} className={i % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
+                    <td className="px-4 py-3 text-slate-800 text-sm">{l.description}</td>
+                    <td className="px-4 py-3 text-right text-slate-600 text-sm">{l.prix_unitaire.toFixed(2)} €</td>
+                    <td className="px-4 py-3 text-right text-slate-600 text-sm">{l.quantite}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-slate-800 text-sm">{l.montant_ht.toFixed(2)} €</td>
                   </tr>
                 ))}
               </tbody>
@@ -272,11 +272,11 @@ export default function ClientPortal({ token }: ClientPortalProps) {
 
           <div className="flex justify-end mt-4">
             <div className="w-full sm:w-72 space-y-2">
-              <div className="flex justify-between text-gray-600 text-sm">
+              <div className="flex justify-between text-slate-600 text-sm">
                 <span>Total HT</span>
                 <span className="font-semibold">{Number(devis?.montant_ht).toFixed(2)} €</span>
               </div>
-              <div className="flex justify-between text-gray-600 text-sm">
+              <div className="flex justify-between text-slate-600 text-sm">
                 <span>TVA ({tvaPct}%)</span>
                 <span className="font-semibold">{Number(devis?.tva).toFixed(2)} €</span>
               </div>
@@ -290,15 +290,15 @@ export default function ClientPortal({ token }: ClientPortalProps) {
 
         {devis?.notes && (
           <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h2 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Notes</h2>
-            <p className="text-gray-700 whitespace-pre-wrap text-sm">{devis.notes}</p>
+            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Notes</h2>
+            <p className="text-slate-700 whitespace-pre-wrap text-sm">{devis.notes}</p>
           </div>
         )}
 
         {devis?.statut === 'envoyé' || devis?.statut === 'brouillon' ? (
           <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h2 className="text-base font-bold text-gray-900 mb-2">Votre réponse</h2>
-            <p className="text-gray-500 text-sm mb-6">
+            <h2 className="text-base font-bold text-slate-900 mb-2">Votre réponse</h2>
+            <p className="text-slate-500 text-sm mb-6">
               En cliquant sur "Accepter", vous confirmez votre accord sur ce devis. Cette action est enregistrée.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
@@ -328,7 +328,7 @@ export default function ClientPortal({ token }: ClientPortalProps) {
           </div>
         )}
 
-        <p className="text-center text-xs text-gray-400 pb-4">
+        <p className="text-center text-xs text-slate-400 pb-4">
           Devis généré avec ProPlomb
         </p>
       </main>

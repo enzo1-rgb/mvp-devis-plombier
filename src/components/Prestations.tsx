@@ -164,8 +164,8 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
     UNITES.find((x) => x.value === u)?.label ?? 'Unité';
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-blue-600 text-white shadow-lg">
+    <div className="min-h-screen bg-slate-50">
+      <header className="bg-slate-900 text-white shadow-lg">
         <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
@@ -195,36 +195,36 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
 
         {showForm && (
           <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">
+            <h2 className="text-lg font-semibold text-slate-800 mb-4">
               {editingId ? 'Modifier la prestation' : 'Nouvelle prestation'}
             </h2>
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nom</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Nom</label>
                 <input
                   type="text"
                   value={formNom}
                   onChange={(e) => setFormNom(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="Ex : Réparation fuite"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Prix unitaire (€)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Prix unitaire (€)</label>
                 <input
                   type="text"
                   value={formPrix}
                   onChange={(e) => setFormPrix(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="0.00"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Unité</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Unité</label>
                 <select
                   value={formUnite}
                   onChange={(e) => setFormUnite(e.target.value as UnitePrestation)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   {UNITES.map((u) => (
                     <option key={u.value} value={u.value}>{u.label}</option>
@@ -243,7 +243,7 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
               </button>
               <button
                 onClick={resetForm}
-                className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                className="flex items-center px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 transition"
               >
                 <X className="w-4 h-4 mr-2" />
                 Annuler
@@ -255,12 +255,12 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-            <p className="mt-4 text-gray-600">Chargement...</p>
+            <p className="mt-4 text-slate-600">Chargement...</p>
           </div>
         ) : prestations.length === 0 && !error ? (
           <div className="bg-white rounded-lg shadow-md p-12 text-center">
-            <p className="text-gray-600 text-lg">Aucune prestation</p>
-            <p className="text-gray-500 mt-2">Les prestations par défaut et vos prestations personnalisées apparaîtront ici.</p>
+            <p className="text-slate-600 text-lg">Aucune prestation</p>
+            <p className="text-slate-500 mt-2">Les prestations par défaut et vos prestations personnalisées apparaîtront ici.</p>
             <button onClick={openAddForm} className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
               Ajouter une prestation
             </button>
@@ -269,19 +269,19 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-100 text-left">
-                  <th className="px-4 py-3 font-semibold text-gray-700">Nom</th>
-                  <th className="px-4 py-3 font-semibold text-gray-700">Prix unitaire</th>
-                  <th className="px-4 py-3 font-semibold text-gray-700">Unité</th>
-                  <th className="px-4 py-3 font-semibold text-gray-700 text-right">Actions</th>
+                <tr className="bg-slate-100 text-left">
+                  <th className="px-4 py-3 font-semibold text-slate-700">Nom</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700">Prix unitaire</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700">Unité</th>
+                  <th className="px-4 py-3 font-semibold text-slate-700 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {prestations.map((p) => (
-                  <tr key={p.id} className="border-t border-gray-200 hover:bg-gray-50">
-                    <td className="px-4 py-3 text-gray-800">{p.nom}</td>
-                    <td className="px-4 py-3 text-gray-600">{p.prix_unitaire.toFixed(2)} €</td>
-                    <td className="px-4 py-3 text-gray-600">{formatUnite(p.unite)}</td>
+                  <tr key={p.id} className="border-t border-slate-200 hover:bg-slate-50">
+                    <td className="px-4 py-3 text-slate-800">{p.nom}</td>
+                    <td className="px-4 py-3 text-slate-600">{p.prix_unitaire.toFixed(2)} €</td>
+                    <td className="px-4 py-3 text-slate-600">{formatUnite(p.unite)}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-2">
                         <button
@@ -313,7 +313,7 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm w-full text-center">
             <h2 className="text-lg font-semibold mb-4">⚠️ Confirmer la suppression</h2>
-            <p className="mb-6 text-gray-700">
+            <p className="mb-6 text-slate-700">
               Vous allez supprimer définitivement la prestation <strong>{prestationToDelete.nom}</strong>. Voulez-vous continuer ?
             </p>
             <div className="flex justify-center gap-4">
@@ -325,7 +325,7 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
               </button>
               <button
                 onClick={() => setPrestationToDelete(null)}
-                className="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition"
+                className="px-4 py-2 bg-slate-300 text-slate-800 rounded-lg hover:bg-slate-400 transition"
               >
                 Annuler
               </button>

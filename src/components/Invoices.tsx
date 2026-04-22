@@ -53,7 +53,7 @@ export default function Invoices({ onBack }: InvoicesProps) {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-slate-50 pb-20">
       <header className="bg-slate-900 text-white p-4 sticky top-0 z-30 flex items-center gap-4 shadow-lg">
         <button onClick={onBack} className="p-2 -ml-2 hover:bg-white/10 rounded-full transition">
           <ArrowLeft />

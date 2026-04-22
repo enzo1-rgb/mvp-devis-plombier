@@ -50,14 +50,14 @@ export default function Auth() {
           </div>
         </div>
 
-        <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">ProPlomb</h1>
-        <p className="text-center text-gray-600 mb-8">
+        <h1 className="text-3xl font-bold text-center text-slate-800 mb-2">ProPlomb</h1>
+        <p className="text-center text-slate-600 mb-8">
           {isSignUp ? 'Créer un compte' : 'Connectez-vous à votre compte'}
         </p>
 
         <form onSubmit={handleAuth} className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
               Adresse email
             </label>
             <input
@@ -66,13 +66,13 @@ export default function Auth() {
               placeholder="votre@email.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
               Mot de passe
             </label>
             <input
@@ -81,13 +81,13 @@ export default function Auth() {
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             />
           </div>
 
           {isSignUp && (
-            <p className="text-xs text-gray-500 leading-relaxed">
+            <p className="text-xs text-slate-500 leading-relaxed">
               En créant un compte, vous acceptez notre{' '}
               <button
                 type="button"
@@ -124,10 +124,10 @@ export default function Auth() {
           </button>
         </div>
 
-        <div className="mt-6 pt-4 border-t border-gray-100 text-center">
+        <div className="mt-6 pt-4 border-t border-slate-100 text-center">
           <button
             onClick={() => setShowPrivacy(true)}
-            className="text-xs text-gray-400 hover:text-gray-600 transition"
+            className="text-xs text-slate-400 hover:text-slate-600 transition"
           >
             Politique de confidentialité & RGPD
           </button>

@@ -302,7 +302,7 @@ export default function Dashboard({
                 }
               }}
               className={`relative flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all ${
-                viewMode === "factures" ? "bg-purple-600 text-white shadow-md" : "text-slate-400 hover:bg-white/10"
+                viewMode === "factures" ? "bg-slate-600 text-white shadow-md" : "text-slate-400 hover:bg-white/10"
               }`}
             >
               <Receipt className="w-5 h-5" />
@@ -390,7 +390,7 @@ export default function Dashboard({
                   {([{ val: 'tous', label: 'Toutes' }, { val: 'payée', label: 'Payées' }, { val: 'non_payée', label: 'Non payées' }] as { val: StatutFactureFilter; label: string }[]).map((s) => (
                     <button key={s.val} onClick={() => setStatutFactureFilter(s.val)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        statutFactureFilter === s.val ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                        statutFactureFilter === s.val ? 'bg-slate-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                       }`}>{s.label}</button>
                   ))}
                 </div>
@@ -481,7 +481,7 @@ export default function Dashboard({
                 return (
                   <div key={inv.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${retard ? 'border-red-200' : 'border-slate-100'}`}>
                     <div className="p-5 flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${retard ? 'bg-red-50 text-red-500' : 'bg-purple-50 text-purple-600'}`}>
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${retard ? 'bg-red-50 text-red-500' : 'bg-slate-50 text-slate-600'}`}>
                         <Receipt className="w-6 h-6" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -502,7 +502,7 @@ export default function Dashboard({
                     </div>
                     <div className="flex border-t border-slate-50 bg-slate-50/30">
                       <button onClick={() => onViewInvoice(inv)}
-                        className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-purple-600 transition border-r border-slate-50">
+                        className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-slate-600 transition border-r border-slate-50">
                         <Eye className="w-4 h-4" /> Voir
                       </button>
                       {peutRelancer && (
@@ -540,12 +540,12 @@ export default function Dashboard({
         {viewMode === 'factures' && totalPagesFactures > 1 && (
           <div className="flex items-center justify-center gap-3 mt-6">
             <button onClick={() => setPageFactures(p => Math.max(1, p - 1))} disabled={pageFactures === 1}
-              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-purple-300 disabled:opacity-30 transition">
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-slate-300 disabled:opacity-30 transition">
               <ChevronLeft className="w-5 h-5" />
             </button>
             <span className="text-sm font-bold text-slate-600">{pageFactures} / {totalPagesFactures}</span>
             <button onClick={() => setPageFactures(p => Math.min(totalPagesFactures, p + 1))} disabled={pageFactures === totalPagesFactures}
-              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-purple-300 disabled:opacity-30 transition">
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-slate-300 disabled:opacity-30 transition">
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>

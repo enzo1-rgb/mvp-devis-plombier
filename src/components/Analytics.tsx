@@ -242,7 +242,7 @@ export default function Analytics({ user, onBack }: AnalyticsProps) {
         {topClients.length > 0 && (
           <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
             <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
-              <Users className="w-4 h-4 text-purple-500" />
+              <Users className="w-4 h-4 text-slate-500" />
               Top clients
             </h2>
             <div className="space-y-3">
@@ -260,7 +260,7 @@ export default function Analytics({ user, onBack }: AnalyticsProps) {
                       </div>
                       <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                         <div
-                          className="h-full rounded-full bg-purple-400"
+                          className="h-full rounded-full bg-slate-400"
                           style={{ width: `${pct}%` }}
                         />
                       </div>

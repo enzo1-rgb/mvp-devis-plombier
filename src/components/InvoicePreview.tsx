@@ -223,8 +223,8 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600" />
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-slate-600" />
       </div>
     );
   }
@@ -233,7 +233,7 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
   const clientAddr = clientInfo?.adresse || invoice.client_address || '';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-slate-50">
 
       {toast && (
         <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl font-bold text-sm text-white ${toast.ok ? 'bg-green-500' : 'bg-red-500'}`}>
@@ -241,10 +241,10 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
         </div>
       )}
 
-      <header className="bg-purple-700 text-white shadow-lg print:hidden">
+      <header className="bg-slate-700 text-white shadow-lg print:hidden">
         <div className="max-w-5xl mx-auto px-4 py-4">
           <div className="flex items-center gap-3 mb-3">
-            <button onClick={onBack} className="p-2 hover:bg-purple-800 rounded-lg transition flex-shrink-0">
+            <button onClick={onBack} className="p-2 hover:bg-slate-800 rounded-lg transition flex-shrink-0">
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">
@@ -257,7 +257,7 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
             <button
               onClick={togglePayment}
               disabled={toggling}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold text-xs transition disabled:opacity-50 flex-1 sm:flex-none justify-center ${statut === 'payée' ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-white text-purple-700 hover:bg-purple-50'}`}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold text-xs transition disabled:opacity-50 flex-1 sm:flex-none justify-center ${statut === 'payée' ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
             >
               <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
               {statut === 'payée' ? 'Payée' : 'Marquer payée'}
@@ -288,17 +288,17 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
 
       {showEmailForm && (
         <div className="max-w-5xl mx-auto px-4 pt-4 print:hidden">
-          <div className="bg-white border border-purple-200 rounded-2xl p-5 shadow-md">
-            <h3 className="font-bold text-gray-800 mb-3">Envoyer la facture par email</h3>
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-md">
+            <h3 className="font-bold text-slate-800 mb-3">Envoyer la facture par email</h3>
             <div className="flex gap-3">
               <input
                 type="email"
                 value={clientEmail}
                 onChange={(e) => setClientEmail(e.target.value)}
                 placeholder="email@client.fr"
-                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="flex-1 border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-slate-500"
               />
-              <button onClick={sendInvoiceEmail} disabled={sending} className="px-5 py-2 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition disabled:opacity-50">
+              <button onClick={sendInvoiceEmail} disabled={sending} className="px-5 py-2 bg-slate-600 text-white rounded-lg font-semibold hover:bg-slate-700 transition disabled:opacity-50">
                 {sending ? 'Envoi...' : 'Envoyer'}
               </button>
             </div>
@@ -310,12 +310,12 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
       <div className="max-w-5xl mx-auto px-4 py-6">
         <div className="bg-white rounded-2xl shadow-md p-8">
 
-          <div className="flex justify-between items-start mb-8 pb-6 border-b-2 border-purple-100">
+          <div className="flex justify-between items-start mb-8 pb-6 border-b-2 border-slate-100">
             <div>
-              <h2 className="text-3xl font-bold text-purple-700 mb-1">FACTURE</h2>
-              <p className="text-gray-400 font-mono text-sm">{invoice.numero_facture}</p>
-              <p className="text-gray-500 text-sm mt-1">Émise le : {new Date(invoice.date_emission || invoice.created_at).toLocaleDateString('fr-FR')}</p>
-              <p className="text-gray-500 text-sm">Échéance : <span className="font-semibold text-gray-700">{dateEcheance()}</span></p>
+              <h2 className="text-3xl font-bold text-slate-700 mb-1">FACTURE</h2>
+              <p className="text-slate-400 font-mono text-sm">{invoice.numero_facture}</p>
+              <p className="text-slate-500 text-sm mt-1">Émise le : {new Date(invoice.date_emission || invoice.created_at).toLocaleDateString('fr-FR')}</p>
+              <p className="text-slate-500 text-sm">Échéance : <span className="font-semibold text-slate-700">{dateEcheance()}</span></p>
             </div>
             <span className={`px-4 py-2 rounded-xl font-bold text-sm ${statut === 'payée' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
               {statut === 'payée' ? 'Payée' : 'Non payée'}
@@ -324,37 +324,37 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
 
           {plombier && (
             <div className="mb-6">
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Émetteur</h3>
-              <div className="bg-purple-50 p-4 rounded-xl border-l-4 border-purple-600">
+              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Émetteur</h3>
+              <div className="bg-slate-50 p-4 rounded-xl border-l-4 border-slate-600">
                 {plombier.nom_entreprise && (
-                  <p className="font-bold text-gray-800">
+                  <p className="font-bold text-slate-800">
                     {plombier.nom_entreprise}
-                    {plombier.forme_juridique && <span className="font-normal text-gray-500 text-sm ml-2">— {plombier.forme_juridique}</span>}
+                    {plombier.forme_juridique && <span className="font-normal text-slate-500 text-sm ml-2">— {plombier.forme_juridique}</span>}
                   </p>
                 )}
-                <p className="font-semibold text-gray-700">{plombier.prenom || ''} {plombier.nom || ''}</p>
-                <p className="text-gray-500 text-sm">{plombier.adresse || ''}</p>
-                <p className="text-gray-500 text-sm">SIRET : {plombier.siret || ''}</p>
-                {plombier.tva_intracom && <p className="text-gray-500 text-sm">N° TVA : {plombier.tva_intracom}</p>}
-                {plombier.numero_rcs && <p className="text-gray-500 text-sm">{plombier.numero_rcs}</p>}
+                <p className="font-semibold text-slate-700">{plombier.prenom || ''} {plombier.nom || ''}</p>
+                <p className="text-slate-500 text-sm">{plombier.adresse || ''}</p>
+                <p className="text-slate-500 text-sm">SIRET : {plombier.siret || ''}</p>
+                {plombier.tva_intracom && <p className="text-slate-500 text-sm">N° TVA : {plombier.tva_intracom}</p>}
+                {plombier.numero_rcs && <p className="text-slate-500 text-sm">{plombier.numero_rcs}</p>}
               </div>
             </div>
           )}
 
           <div className="mb-6">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Client</h3>
-            <div className="bg-gray-50 p-4 rounded-xl">
-              <p className="font-semibold text-gray-800">{clientName}</p>
-              {clientAddr && <p className="text-gray-500 text-sm">{clientAddr}</p>}
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Client</h3>
+            <div className="bg-slate-50 p-4 rounded-xl">
+              <p className="font-semibold text-slate-800">{clientName}</p>
+              {clientAddr && <p className="text-slate-500 text-sm">{clientAddr}</p>}
             </div>
           </div>
 
           <div className="mb-6">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">Prestations</h3>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Prestations</h3>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-purple-700 text-white">
+                  <tr className="bg-slate-700 text-white">
                     <th className="px-4 py-3 text-left rounded-tl-lg">Prestation</th>
                     <th className="px-4 py-3 text-right">P.U.</th>
                     <th className="px-4 py-3 text-right">Qté</th>
@@ -363,11 +363,11 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
                 </thead>
                 <tbody>
                   {lignes.map((l, i) => (
-                    <tr key={l.id} className={i % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                      <td className="px-4 py-3 text-gray-800">{l.description}</td>
-                      <td className="px-4 py-3 text-right text-gray-600">{l.prix_unitaire.toFixed(2)} €</td>
-                      <td className="px-4 py-3 text-right text-gray-600">{l.quantite}</td>
-                      <td className="px-4 py-3 text-right font-semibold text-gray-800">{l.montant_ht.toFixed(2)} €</td>
+                    <tr key={l.id} className={i % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
+                      <td className="px-4 py-3 text-slate-800">{l.description}</td>
+                      <td className="px-4 py-3 text-right text-slate-600">{l.prix_unitaire.toFixed(2)} €</td>
+                      <td className="px-4 py-3 text-right text-slate-600">{l.quantite}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-slate-800">{l.montant_ht.toFixed(2)} €</td>
                     </tr>
                   ))}
                 </tbody>
@@ -377,29 +377,29 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
 
           <div className="flex justify-end mb-6">
             <div className="w-full sm:w-80 space-y-2">
-              <div className="flex justify-between text-gray-600">
+              <div className="flex justify-between text-slate-600">
                 <span>Total HT</span>
                 <span className="font-semibold">{Number(invoice.montant_ht).toFixed(2)} €</span>
               </div>
-              <div className="flex justify-between text-gray-600">
+              <div className="flex justify-between text-slate-600">
                 <span>TVA ({tvaPct}%)</span>
                 <span className="font-semibold">{Number(invoice.tva).toFixed(2)} €</span>
               </div>
-              <div className="border-t-2 border-purple-600 pt-3 flex justify-between text-xl">
-                <span className="text-purple-700 font-bold">Total TTC</span>
-                <span className="text-purple-700 font-bold">{Number(invoice.montant_ttc).toFixed(2)} €</span>
+              <div className="border-t-2 border-slate-600 pt-3 flex justify-between text-xl">
+                <span className="text-slate-700 font-bold">Total TTC</span>
+                <span className="text-slate-700 font-bold">{Number(invoice.montant_ttc).toFixed(2)} €</span>
               </div>
             </div>
           </div>
 
           {plombier?.iban && (
             <div className="mb-4 p-4 bg-green-50 rounded-xl border border-green-100">
-              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Règlement par virement</p>
-              <p className="font-mono text-sm text-gray-700">{plombier.iban}</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Règlement par virement</p>
+              <p className="font-mono text-sm text-slate-700">{plombier.iban}</p>
             </div>
           )}
 
-          <div className="pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
+          <div className="pt-4 border-t border-slate-100 text-xs text-slate-400 space-y-1">
             <p>Paiement sous {plombier?.delai_paiement ?? 30} jours à compter de la date d'émission — Échéance le {dateEcheance()}.</p>
             <p>En cas de retard, pénalités au taux de {plombier?.taux_penalite || '3 fois le taux légal'} + indemnité forfaitaire de recouvrement de 40 € (art. L441-10 Code de Commerce).</p>
             <p>Pas d'escompte pour règlement anticipé.</p>
