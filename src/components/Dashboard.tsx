@@ -293,7 +293,14 @@ export default function Dashboard({
 
           <nav className="flex items-center gap-1.5">
             <button
-              onClick={() => { setViewMode("factures"); setStatutFactureFilter("non_payée"); }}
+              onClick={() => { 
+                if (viewMode === "factures") {
+                  setViewMode("devis");
+                } else {
+                  setViewMode("factures");
+                  setStatutFactureFilter("non_payée");
+                }
+              }}
               className={`relative flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all ${
                 viewMode === "factures" ? "bg-purple-600 text-white shadow-md" : "text-slate-400 hover:bg-white/10"
               }`}
