@@ -165,14 +165,14 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-slate-900 text-white shadow-lg">
-        <div className="max-w-4xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <button onClick={onBack} className="mr-4 p-2 hover:bg-blue-700 rounded-lg transition">
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-              <h1 className="text-2xl sm:text-3xl font-bold">Mes Prestations</h1>
+      <header className="bg-slate-900 text-white shadow-lg h-16 flex items-center">
+  <div className="max-w-4xl mx-auto px-4 w-full sm:px-6 lg:px-8">
+    <div className="flex items-center justify-between">
+      <div className="flex items-center">
+        <button onClick={onBack} className="mr-4 p-2 hover:bg-slate-700 rounded-lg transition">
+          <ArrowLeft className="w-6 h-6" />
+        </button>
+        <h1 className="text-base font-bold">Mes Prestations</h1>
             </div>
             <button
               onClick={openAddForm}

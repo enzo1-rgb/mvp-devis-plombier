@@ -308,13 +308,13 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-slate-900 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center">
-            <button onClick={onBack} className="mr-4 p-2 hover:bg-blue-700 rounded-lg transition">
-              <ArrowLeft className="w-6 h-6" />
-            </button>
-            <h1 className="text-2xl sm:text-3xl font-bold">
+      <header className="bg-slate-900 text-white shadow-lg h-16 flex items-center">
+  <div className="max-w-7xl mx-auto px-4 w-full sm:px-6 lg:px-8">
+    <div className="flex items-center">
+      <button onClick={onBack} className="mr-4 p-2 hover:bg-slate-700 rounded-lg transition">
+        <ArrowLeft className="w-6 h-6" />
+      </button>
+      <h1 className="text-base font-bold">
               {quoteToEdit ? 'Modifier le devis' : 'Nouveau Devis'}
             </h1>
           </div>
