@@ -1,35 +1,35 @@
 import { useState } from "react";
 
 interface SendEmailButtonProps {
-  quoteHtml?: string; // le HTML du devis à envoyer
+  quoteHtml?: string;
 }
 
 export default function SendEmailButton({ quoteHtml }: SendEmailButtonProps) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [isError, setIsError] = useState(false);
 
   const handleSendEmail = async () => {
     if (!quoteHtml) {
+      setIsError(true);
       setMessage("Aucun contenu de devis à envoyer !");
-      console.log("quoteHtml est vide !");
       return;
     }
 
-    console.log("Envoi du HTML :", quoteHtml);
-
     setLoading(true);
     setMessage("");
+    setIsError(false);
 
     try {
       const res = await fetch(
-        "https://mvp-devis-plombier-production.up.railway.app/send-email", // backend Railway
+        "https://mvp-devis-plombier-production.up.railway.app/send-email",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            to: "enzo.keti1@gmail.com", // ton email pour tester
+            to: "enzo.keti1@gmail.com",
             subject: "Devis Plombier",
-            html: quoteHtml, // le contenu du devis
+            html: quoteHtml,
           }),
         }
       );
@@ -37,14 +37,17 @@ export default function SendEmailButton({ quoteHtml }: SendEmailButtonProps) {
       const data = await res.json();
 
       if (!res.ok) {
-        setMessage("Erreur : " + (data.error || "Email non envoyé"));
+        setIsError(true);
+        setMessage("L'envoi d'e-mail est temporairement indisponible. Veuillez réessayer plus tard.");
         console.error("Erreur serveur :", data);
       } else {
+        setIsError(false);
         setMessage("Email envoyé avec succès !");
         console.log("Réponse serveur :", data);
       }
     } catch (err: any) {
-      setMessage("Erreur : " + err.message);
+      setIsError(true);
+      setMessage("Impossible de contacter le serveur. Vérifiez votre connexion.");
       console.error("Erreur fetch :", err);
     }
 
@@ -60,7 +63,11 @@ export default function SendEmailButton({ quoteHtml }: SendEmailButtonProps) {
       >
         {loading ? "Envoi..." : "Envoyer le devis par email"}
       </button>
-      {message && <p className="mt-2 text-sm text-gray-700">{message}</p>}
+      {message && (
+        <p className={`mt-2 text-sm ${isError ? "text-red-600" : "text-green-600"}`}>
+          {message}
+        </p>
+      )}
     </div>
   );
 }
