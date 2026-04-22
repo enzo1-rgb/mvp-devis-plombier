@@ -156,7 +156,11 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
   };
 
   const removeItem = (index: number) => {
-    if (items.length > 1) setItems(items.filter((_, i) => i !== index));
+    if (items.length > 1) {
+      setItems(items.filter((_, i) => i !== index));
+    } else {
+      setItems([{ prestation_id: null, description: '', prix_unitaire: 0, quantite: 1, montant_ht: 0 }]);
+    }
   };
 
   const addPrestation = (prestation: Prestation) => {
@@ -434,14 +438,12 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
                         {item.montant_ht.toFixed(2)} €
                       </div>
                     </div>
-                    {items.length > 1 && (
-                      <button
-                        onClick={() => removeItem(index)}
-                        className="ml-2 p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    )}
+                    <button
+  onClick={() => removeItem(index)}
+  className="ml-2 p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+>
+  <Trash2 className="w-5 h-5" />
+</button>
                   </div>
                 </div>
               </div>
