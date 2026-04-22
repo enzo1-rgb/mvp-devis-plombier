@@ -218,6 +218,7 @@ export default function Dashboard({
       setToast({ message: `Facture ${numFacture} générée !`, ok: true });
       setViewMode("factures");
     } catch (err) {
+      console.error("Erreur facture :", err);
       setToast({ message: "Erreur lors de la création de la facture.", ok: false });
     } finally {
       setAcceptLoading(null);
