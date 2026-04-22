@@ -4,7 +4,7 @@ import { Quote } from "../lib/types";
 import {
   Plus, User, Wrench, LogOut, Search,
   Receipt, CheckCircle, Eye, Edit2, Trash2, TrendingUp,
-  ChevronLeft, ChevronRight, Filter,
+  ChevronLeft, ChevronRight, Filter, Bell,
 } from "lucide-react";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import Profile from "./Profile";
@@ -65,11 +65,7 @@ type PeriodeFilter = 'tout' | 'mois' | '3mois';
 type StatutFactureFilter = 'tous' | 'payée' | 'non_payée';
 
 export default function Dashboard({
-  user,
-  onCreateQuote,
-  onViewQuote,
-  onEditQuote,
-  onViewInvoice,
+  user, onCreateQuote, onViewQuote, onEditQuote, onViewInvoice,
 }: DashboardProps) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -83,31 +79,18 @@ export default function Dashboard({
   const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null);
   const [toast, setToast] = useState<{ message: string; ok: boolean } | null>(null);
   const [acceptLoading, setAcceptLoading] = useState<string | null>(null);
+  const [relanceLoading, setRelanceLoading] = useState<string | null>(null);
 
-  // Filtres devis
   const [statutFilter, setStatutFilter] = useState<StatutFilter>('tous');
   const [periodeFilter, setPeriodeFilter] = useState<PeriodeFilter>('tout');
   const [pageDevis, setPageDevis] = useState(1);
-
-  // Filtres factures
   const [statutFactureFilter, setStatutFactureFilter] = useState<StatutFactureFilter>('tous');
   const [pageFactures, setPageFactures] = useState(1);
-
   const [showFilters, setShowFilters] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode]);
-
-  useEffect(() => {
-    setPageDevis(1);
-  }, [search, statutFilter, periodeFilter]);
-
-  useEffect(() => {
-    setPageFactures(1);
-  }, [search, statutFactureFilter]);
-
+  useEffect(() => { loadData(); }, [viewMode]);
+  useEffect(() => { setPageDevis(1); }, [search, statutFilter, periodeFilter]);
+  useEffect(() => { setPageFactures(1); }, [search, statutFactureFilter]);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3500);
@@ -119,23 +102,95 @@ export default function Dashboard({
     try {
       if (viewMode === "devis") {
         const { data } = await supabase
-          .from("devis")
-          .select(`*, clients (nom, adresse)`)
-          .eq("plombier_id", user.id)
-          .order("created_at", { ascending: false });
+          .from("devis").select(`*, clients (nom, adresse)`)
+          .eq("plombier_id", user.id).order("created_at", { ascending: false });
         if (data) setQuotes(data.map((r) => toQuote(r as unknown as DevisRow)));
       } else {
         const { data } = await supabase
-          .from("factures")
-          .select(`*, clients (nom)`)
-          .eq("plombier_id", user.id)
-          .order("created_at", { ascending: false });
+          .from("factures").select(`*, clients (nom, email)`)
+          .eq("plombier_id", user.id).order("created_at", { ascending: false });
         if (data) setInvoices(data);
       }
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
     setLoading(false);
+  };
+
+  const isOverdue = (inv: any) => {
+    if (inv.statut === 'payée') return false;
+    const delai = 30;
+    const base = new Date(inv.date_emission || inv.created_at);
+    base.setDate(base.getDate() + delai);
+    return new Date() > base;
+  };
+
+  const handleRelance = async (inv: any) => {
+    setRelanceLoading(inv.id);
+    try {
+      const { data: clientData } = await supabase
+        .from('clients').select('nom, email, adresse').eq('id', inv.client_id).single();
+
+      if (!clientData?.email) {
+        setToast({ message: 'Aucun email client enregistré pour cette facture.', ok: false });
+        return;
+      }
+
+      const { data: plombierData } = await supabase
+        .from('plombiers').select('*').eq('id', user.id).single();
+
+      const dateEmission = new Date(inv.date_emission || inv.created_at);
+      const delai = plombierData?.delai_paiement ?? 30;
+      const dateEcheance = new Date(dateEmission);
+      dateEcheance.setDate(dateEcheance.getDate() + delai);
+      const joursRetard = Math.max(0, Math.floor((Date.now() - dateEcheance.getTime()) / (1000 * 60 * 60 * 24)));
+      const numeroRelance = (inv.nb_relances ?? 0) + 1;
+
+      const html = `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
+          <h2 style="color:#d97706">⚠️ Rappel de paiement — Facture ${inv.numero_facture}</h2>
+          <p style="color:#6b7280">Relance n°${numeroRelance}${joursRetard > 0 ? ` — ${joursRetard} jour${joursRetard > 1 ? 's' : ''} de retard` : ''}</p>
+          ${plombierData ? `
+          <div style="margin:20px 0;padding:15px;background:#fffbeb;border-left:4px solid #f59e0b;border-radius:4px">
+            <strong>${plombierData.nom_entreprise || `${plombierData.prenom} ${plombierData.nom}`}</strong><br/>
+            <span style="color:#6b7280">${plombierData.adresse || ''}<br/>SIRET : ${plombierData.siret || ''}</span>
+          </div>` : ''}
+          <p>Bonjour <strong>${clientData.nom}</strong>,</p>
+          <p>Sauf erreur de notre part, la facture <strong>${inv.numero_facture}</strong> d'un montant de <strong>${Number(inv.montant_ttc).toFixed(2)} €</strong> est toujours en attente de règlement.</p>
+          <p>Date d'échéance : <strong>${dateEcheance.toLocaleDateString('fr-FR')}</strong></p>
+          <div style="margin:24px 0;padding:16px;background:#f9fafb;border-radius:8px;text-align:center">
+            <p style="font-size:24px;font-weight:bold;color:#d97706;margin:0">${Number(inv.montant_ttc).toFixed(2)} €</p>
+            <p style="color:#6b7280;margin:4px 0 0">à régler dès que possible</p>
+          </div>
+          ${plombierData?.iban ? `<p style="font-size:13px">Virement : <strong style="font-family:monospace">${plombierData.iban}</strong></p>` : ''}
+          <p style="font-size:12px;color:#9ca3af;margin-top:24px">En cas de retard, pénalités au taux de ${plombierData?.taux_penalite || '3 fois le taux légal'} + indemnité forfaitaire de 40 € (art. L441-10 Code de Commerce).</p>
+        </div>`;
+
+      const res = await fetch(`${import.meta.env.VITE_EMAIL_SERVER_URL}/send-email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: clientData.email,
+          subject: `Rappel de paiement — Facture ${inv.numero_facture}`,
+          html,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Erreur envoi email');
+
+      await supabase.from('factures').update({
+        nb_relances: numeroRelance,
+        derniere_relance: new Date().toISOString(),
+      }).eq('id', inv.id);
+
+      setInvoices(prev => prev.map(f =>
+        f.id === inv.id ? { ...f, nb_relances: numeroRelance, derniere_relance: new Date().toISOString() } : f
+      ));
+
+      setToast({ message: `Relance n°${numeroRelance} envoyée à ${clientData.email}`, ok: true });
+    } catch (err) {
+      setToast({ message: 'Erreur lors de l\'envoi de la relance.', ok: false });
+    } finally {
+      setRelanceLoading(null);
+    }
   };
 
   const handleAcceptQuote = async (quote: Quote) => {
@@ -143,40 +198,26 @@ export default function Dashboard({
     try {
       const { data: existing } = await supabase
         .from("factures").select("id").eq("devis_id", quote.id).maybeSingle();
-
       if (existing) {
         setToast({ message: "Une facture existe déjà pour ce devis.", ok: false });
         setViewMode("factures");
         return;
       }
-
       const { error: updateError } = await supabase
         .from("devis").update({ statut: "accepté" }).eq("id", quote.id);
       if (updateError) throw updateError;
-
-      const { data: numData, error: numError } = await supabase.rpc('generate_numero_facture', {
-        p_plombier_id: user.id,
-      });
+      const { data: numData, error: numError } = await supabase.rpc('generate_numero_facture', { p_plombier_id: user.id });
       if (numError) throw numError;
       const numFacture = numData as string;
-
       const { error: insertError } = await supabase.from("factures").insert({
-        plombier_id: user.id,
-        devis_id: quote.id,
-        client_id: quote.client_id,
-        numero_facture: numFacture,
-        montant_ht: quote.total_ht,
-        tva: quote.tva,
-        tva_rate: quote.tva_rate,
-        montant_ttc: quote.total_ttc,
-        statut: "non_payée",
+        plombier_id: user.id, devis_id: quote.id, client_id: quote.client_id,
+        numero_facture: numFacture, montant_ht: quote.total_ht, tva: quote.tva,
+        tva_rate: quote.tva_rate, montant_ttc: quote.total_ttc, statut: "non_payée",
       });
       if (insertError) throw insertError;
-
       setToast({ message: `Facture ${numFacture} générée !`, ok: true });
       setViewMode("factures");
     } catch (err) {
-      console.error(err);
       setToast({ message: "Erreur lors de la création de la facture.", ok: false });
     } finally {
       setAcceptLoading(null);
@@ -196,7 +237,6 @@ export default function Dashboard({
   if (showPrestations) return <Prestations user={user} onBack={() => setShowPrestations(false)} />;
   if (showAnalytics) return <Analytics user={user} onBack={() => setShowAnalytics(false)} />;
 
-  // ── Filtrage devis ──────────────────────────────────────────────────────────
   const now = new Date();
   const filteredQuotes = quotes.filter((q) => {
     const matchSearch = q.client_name.toLowerCase().includes(search.toLowerCase()) ||
@@ -212,11 +252,9 @@ export default function Dashboard({
     }
     return matchSearch && matchStatut && matchPeriode;
   });
-
   const totalPagesDevis = Math.max(1, Math.ceil(filteredQuotes.length / PAGE_SIZE));
   const paginatedQuotes = filteredQuotes.slice((pageDevis - 1) * PAGE_SIZE, pageDevis * PAGE_SIZE);
 
-  // ── Filtrage factures ───────────────────────────────────────────────────────
   const filteredInvoices = invoices.filter((inv) => {
     const matchSearch =
       (inv.clients?.nom ?? "").toLowerCase().includes(search.toLowerCase()) ||
@@ -224,13 +262,14 @@ export default function Dashboard({
     const matchStatut = statutFactureFilter === 'tous' || inv.statut === statutFactureFilter;
     return matchSearch && matchStatut;
   });
-
   const totalPagesFactures = Math.max(1, Math.ceil(filteredInvoices.length / PAGE_SIZE));
   const paginatedInvoices = filteredInvoices.slice((pageFactures - 1) * PAGE_SIZE, pageFactures * PAGE_SIZE);
 
   const hasActiveFilters = viewMode === 'devis'
     ? statutFilter !== 'tous' || periodeFilter !== 'tout'
     : statutFactureFilter !== 'tous';
+
+  const nbRetard = invoices.filter(isOverdue).length;
 
   return (
     <div className="min-h-screen pb-28 bg-slate-50 font-sans">
@@ -254,13 +293,18 @@ export default function Dashboard({
 
           <nav className="flex items-center gap-1.5">
             <button
-              onClick={() => setViewMode(viewMode === "devis" ? "factures" : "devis")}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all ${
+              onClick={() => { setViewMode("factures"); setStatutFactureFilter("non_payée"); }}
+              className={`relative flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all ${
                 viewMode === "factures" ? "bg-purple-600 text-white shadow-md" : "text-slate-400 hover:bg-white/10"
               }`}
             >
               <Receipt className="w-5 h-5" />
               <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-widest">Factures</span>
+              {nbRetard > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] font-black text-white flex items-center justify-center">
+                  {nbRetard}
+                </span>
+              )}
             </button>
             <button onClick={() => setShowAnalytics(true)} className="p-2 text-slate-400 hover:text-white">
               <TrendingUp className="w-5 h-5" />
@@ -283,7 +327,6 @@ export default function Dashboard({
           {viewMode === "devis" ? "Mes Devis" : "Mes Factures"}
         </h1>
 
-        {/* Barre recherche + bouton filtres */}
         <div className="flex gap-2 mb-3">
           <div className="relative flex-1">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -297,9 +340,7 @@ export default function Dashboard({
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl font-bold text-sm border transition-all ${
-              hasActiveFilters
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'
+              hasActiveFilters ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'
             }`}
           >
             <Filter className="w-4 h-4" />
@@ -308,7 +349,6 @@ export default function Dashboard({
           </button>
         </div>
 
-        {/* Panneau filtres */}
         {showFilters && (
           <div className="bg-white rounded-2xl border border-slate-200 p-4 mb-4 space-y-4 shadow-sm">
             {viewMode === 'devis' ? (
@@ -317,39 +357,21 @@ export default function Dashboard({
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Statut</p>
                   <div className="flex flex-wrap gap-2">
                     {(['tous', 'brouillon', 'envoyé', 'accepté', 'refusé'] as StatutFilter[]).map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setStatutFilter(s)}
+                      <button key={s} onClick={() => setStatutFilter(s)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all capitalize ${
-                          statutFilter === s
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                        }`}
-                      >
-                        {s === 'tous' ? 'Tous' : s}
-                      </button>
+                          statutFilter === s ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                        }`}>{s === 'tous' ? 'Tous' : s}</button>
                     ))}
                   </div>
                 </div>
                 <div>
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Période</p>
                   <div className="flex flex-wrap gap-2">
-                    {([
-                      { val: 'tout', label: 'Tout' },
-                      { val: 'mois', label: 'Ce mois' },
-                      { val: '3mois', label: '3 derniers mois' },
-                    ] as { val: PeriodeFilter; label: string }[]).map((p) => (
-                      <button
-                        key={p.val}
-                        onClick={() => setPeriodeFilter(p.val)}
+                    {([{ val: 'tout', label: 'Tout' }, { val: 'mois', label: 'Ce mois' }, { val: '3mois', label: '3 derniers mois' }] as { val: PeriodeFilter; label: string }[]).map((p) => (
+                      <button key={p.val} onClick={() => setPeriodeFilter(p.val)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                          periodeFilter === p.val
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                        }`}
-                      >
-                        {p.label}
-                      </button>
+                          periodeFilter === p.val ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                        }`}>{p.label}</button>
                     ))}
                   </div>
                 </div>
@@ -358,46 +380,27 @@ export default function Dashboard({
               <div>
                 <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Statut paiement</p>
                 <div className="flex flex-wrap gap-2">
-                  {([
-                    { val: 'tous', label: 'Toutes' },
-                    { val: 'payée', label: 'Payées' },
-                    { val: 'non_payée', label: 'Non payées' },
-                  ] as { val: StatutFactureFilter; label: string }[]).map((s) => (
-                    <button
-                      key={s.val}
-                      onClick={() => setStatutFactureFilter(s.val)}
+                  {([{ val: 'tous', label: 'Toutes' }, { val: 'payée', label: 'Payées' }, { val: 'non_payée', label: 'Non payées' }] as { val: StatutFactureFilter; label: string }[]).map((s) => (
+                    <button key={s.val} onClick={() => setStatutFactureFilter(s.val)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        statutFactureFilter === s.val
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                      }`}
-                    >
-                      {s.label}
-                    </button>
+                        statutFactureFilter === s.val ? 'bg-purple-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                      }`}>{s.label}</button>
                   ))}
                 </div>
               </div>
             )}
-
             {hasActiveFilters && (
-              <button
-                onClick={() => {
-                  setStatutFilter('tous');
-                  setPeriodeFilter('tout');
-                  setStatutFactureFilter('tous');
-                }}
-                className="text-xs text-red-500 font-bold hover:underline"
-              >
+              <button onClick={() => { setStatutFilter('tous'); setPeriodeFilter('tout'); setStatutFactureFilter('tous'); }}
+                className="text-xs text-red-500 font-bold hover:underline">
                 Réinitialiser les filtres
               </button>
             )}
           </div>
         )}
 
-        {/* Compteur résultats */}
         <p className="text-xs text-slate-400 font-medium mb-3">
           {viewMode === 'devis'
-            ? `${filteredQuotes.length} devis${filteredQuotes.length > 1 ? '' : ''}`
+            ? `${filteredQuotes.length} devis`
             : `${filteredInvoices.length} facture${filteredInvoices.length > 1 ? 's' : ''}`}
         </p>
 
@@ -430,13 +433,10 @@ export default function Dashboard({
                         : quote.status === "refusé" ? "pill-refusé"
                         : quote.status === "envoyé" ? "pill-envoyé"
                         : "pill-brouillon"
-                      }`}>
-                        {quote.status}
-                      </span>
+                      }`}>{quote.status}</span>
                     </div>
                     <p className="font-black text-xl text-slate-900">{quote.total_ttc.toFixed(2)} €</p>
                   </div>
-
                   <div className="flex border-t border-slate-50 bg-slate-50/30">
                     <button onClick={() => onViewQuote(quote)} className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-blue-600 border-r border-slate-50">
                       <Eye className="w-4 h-4" /> Voir
@@ -445,11 +445,8 @@ export default function Dashboard({
                       <Edit2 className="w-4 h-4" /> Modifier
                     </button>
                     {quote.status === "envoyé" && (
-                      <button
-                        onClick={() => handleAcceptQuote(quote)}
-                        disabled={acceptLoading === quote.id}
-                        className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-green-600 hover:bg-green-50 border-r border-slate-50 disabled:opacity-40 transition"
-                      >
+                      <button onClick={() => handleAcceptQuote(quote)} disabled={acceptLoading === quote.id}
+                        className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-green-600 hover:bg-green-50 border-r border-slate-50 disabled:opacity-40 transition">
                         <CheckCircle className="w-4 h-4" />
                         {acceptLoading === quote.id ? "…" : "Accepter"}
                       </button>
@@ -471,52 +468,63 @@ export default function Dashboard({
                 </p>
               </div>
             ) : (
-              paginatedInvoices.map((inv) => (
-                <div key={inv.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                  <div className="p-5 flex items-center gap-4">
-                    <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center flex-shrink-0">
-                      <Receipt className="w-6 h-6" />
+              paginatedInvoices.map((inv) => {
+                const retard = isOverdue(inv);
+                const peutRelancer = retard && (inv.nb_relances ?? 0) < 3 && inv.clients?.email;
+                return (
+                  <div key={inv.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${retard ? 'border-red-200' : 'border-slate-100'}`}>
+                    <div className="p-5 flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${retard ? 'bg-red-50 text-red-500' : 'bg-purple-50 text-purple-600'}`}>
+                        <Receipt className="w-6 h-6" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-slate-900 truncate">{inv.clients?.nom ?? "Client inconnu"}</p>
+                        <p className="text-[10px] text-slate-400 font-mono">{inv.numero_facture}</p>
+                        {retard && (
+                          <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-red-100 text-red-600 rounded-full text-[10px] font-bold">
+                            ⚠️ En retard{(inv.nb_relances ?? 0) > 0 ? ` · ${inv.nb_relances} relance${inv.nb_relances > 1 ? 's' : ''}` : ''}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="font-black text-slate-900">{Number(inv.montant_ttc).toFixed(2)} €</p>
+                        <span className={`text-[10px] font-bold uppercase tracking-wide ${inv.statut === "payée" ? "text-green-600" : "text-amber-500"}`}>
+                          {inv.statut === "payée" ? "Payée" : "Non payée"}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-slate-900 truncate">{inv.clients?.nom ?? "Client inconnu"}</p>
-                      <p className="text-[10px] text-slate-400 font-mono">{inv.numero_facture}</p>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className="font-black text-slate-900">{Number(inv.montant_ttc).toFixed(2)} €</p>
-                      <span className={`text-[10px] font-bold uppercase tracking-wide ${inv.statut === "payée" ? "text-green-600" : "text-amber-500"}`}>
-                        {inv.statut === "payée" ? "Payée" : "Non payée"}
-                      </span>
+                    <div className="flex border-t border-slate-50 bg-slate-50/30">
+                      <button onClick={() => onViewInvoice(inv)}
+                        className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-purple-600 transition border-r border-slate-50">
+                        <Eye className="w-4 h-4" /> Voir
+                      </button>
+                      {peutRelancer && (
+                        <button
+                          onClick={() => handleRelance(inv)}
+                          disabled={relanceLoading === inv.id}
+                          className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-amber-600 hover:bg-amber-50 transition disabled:opacity-40"
+                        >
+                          <Bell className="w-4 h-4" />
+                          {relanceLoading === inv.id ? '…' : 'Relancer'}
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className="flex border-t border-slate-50 bg-slate-50/30">
-                    <button onClick={() => onViewInvoice(inv)} className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-purple-600 transition">
-                      <Eye className="w-4 h-4" /> Voir la facture
-                    </button>
-                  </div>
-                </div>
-              ))
+                );
+              })
             )
           )}
         </div>
 
-        {/* Pagination */}
         {viewMode === 'devis' && totalPagesDevis > 1 && (
           <div className="flex items-center justify-center gap-3 mt-6">
-            <button
-              onClick={() => setPageDevis(p => Math.max(1, p - 1))}
-              disabled={pageDevis === 1}
-              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-blue-300 disabled:opacity-30 transition"
-            >
+            <button onClick={() => setPageDevis(p => Math.max(1, p - 1))} disabled={pageDevis === 1}
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-blue-300 disabled:opacity-30 transition">
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <span className="text-sm font-bold text-slate-600">
-              {pageDevis} / {totalPagesDevis}
-            </span>
-            <button
-              onClick={() => setPageDevis(p => Math.min(totalPagesDevis, p + 1))}
-              disabled={pageDevis === totalPagesDevis}
-              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-blue-300 disabled:opacity-30 transition"
-            >
+            <span className="text-sm font-bold text-slate-600">{pageDevis} / {totalPagesDevis}</span>
+            <button onClick={() => setPageDevis(p => Math.min(totalPagesDevis, p + 1))} disabled={pageDevis === totalPagesDevis}
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-blue-300 disabled:opacity-30 transition">
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>
@@ -524,21 +532,13 @@ export default function Dashboard({
 
         {viewMode === 'factures' && totalPagesFactures > 1 && (
           <div className="flex items-center justify-center gap-3 mt-6">
-            <button
-              onClick={() => setPageFactures(p => Math.max(1, p - 1))}
-              disabled={pageFactures === 1}
-              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-purple-300 disabled:opacity-30 transition"
-            >
+            <button onClick={() => setPageFactures(p => Math.max(1, p - 1))} disabled={pageFactures === 1}
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-purple-300 disabled:opacity-30 transition">
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <span className="text-sm font-bold text-slate-600">
-              {pageFactures} / {totalPagesFactures}
-            </span>
-            <button
-              onClick={() => setPageFactures(p => Math.min(totalPagesFactures, p + 1))}
-              disabled={pageFactures === totalPagesFactures}
-              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-purple-300 disabled:opacity-30 transition"
-            >
+            <span className="text-sm font-bold text-slate-600">{pageFactures} / {totalPagesFactures}</span>
+            <button onClick={() => setPageFactures(p => Math.min(totalPagesFactures, p + 1))} disabled={pageFactures === totalPagesFactures}
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-purple-300 disabled:opacity-30 transition">
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>
