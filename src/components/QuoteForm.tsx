@@ -161,10 +161,13 @@ export default function QuoteForm({ onBack, onSuccess, quoteToEdit }: QuoteFormP
 
   const addPrestation = (prestation: Prestation) => {
     const prix = prestation.prix_unitaire;
-    setItems([
-      ...items,
-      { prestation_id: prestation.id, description: prestation.nom, prix_unitaire: prix, quantite: 1, montant_ht: prix },
-    ]);
+    const newItem = { prestation_id: prestation.id, description: prestation.nom, prix_unitaire: prix, quantite: 1, montant_ht: prix };
+    const premiereEstVide = items.length === 1 && !items[0].description.trim() && items[0].prix_unitaire === 0;
+    if (premiereEstVide) {
+      setItems([newItem]);
+    } else {
+      setItems([...items, newItem]);
+    }
   };
 
   const getTotalHT = () => items.reduce((sum, item) => sum + item.montant_ht, 0);
