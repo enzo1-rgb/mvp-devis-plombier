@@ -343,7 +343,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       setClientEmail('');
       alert('Devis envoyé par email avec succès.');
     } catch (err) {
-      setEmailError(err instanceof Error ? err.message : "Erreur lors de l'envoi.");
+      setEmailError("L'envoi d'e-mail est temporairement indisponible. Veuillez réessayer plus tard.");
     } finally {
       setSendingEmail(false);
     }
