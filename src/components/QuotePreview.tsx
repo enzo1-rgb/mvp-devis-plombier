@@ -351,10 +351,10 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <p className="mt-4 text-slate-600">Chargement...</p>
+      <div className="min-h-screen bg-slate-50">
+        <div className="h-16 bg-slate-900" />
+        <div className="max-w-3xl mx-auto px-4 py-8 space-y-4">
+          {[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-slate-200 rounded-xl animate-pulse" />)}
         </div>
       </div>
     );

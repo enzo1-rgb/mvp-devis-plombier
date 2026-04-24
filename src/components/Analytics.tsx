@@ -144,8 +144,11 @@ export default function Analytics({ user, onBack }: AnalyticsProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      <div className="min-h-screen bg-slate-50">
+        <div className="h-16 bg-slate-900" />
+        <div className="max-w-5xl mx-auto px-4 py-8 space-y-4">
+          {[...Array(4)].map((_, i) => <div key={i} className="h-24 bg-slate-200 rounded-xl animate-pulse" />)}
+        </div>
       </div>
     );
   }
