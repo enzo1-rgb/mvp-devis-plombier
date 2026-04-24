@@ -266,45 +266,76 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
             </button>
           </div>
         ) : (
-          <div className="bg-white rounded-lg shadow-md overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-slate-100 text-left">
-                  <th className="px-4 py-3 font-semibold text-slate-700">Nom</th>
-                  <th className="px-4 py-3 font-semibold text-slate-700">Prix unitaire</th>
-                  <th className="px-4 py-3 font-semibold text-slate-700">Unité</th>
-                  <th className="px-4 py-3 font-semibold text-slate-700 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {prestations.map((p) => (
-                  <tr key={p.id} className="border-t border-slate-200 hover:bg-slate-50">
-                    <td className="px-4 py-3 text-slate-800">{p.nom}</td>
-                    <td className="px-4 py-3 text-slate-600">{p.prix_unitaire.toFixed(2)} €</td>
-                    <td className="px-4 py-3 text-slate-600">{formatUnite(p.unite)}</td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => openEditForm(p)}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition text-sm font-medium"
-                        >
-                          <Pencil className="w-4 h-4" />
-                          Modifier
-                        </button>
-                        <button
-                          onClick={() => setPrestationToDelete(p)}
-                          className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Supprimer
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-3 sm:space-y-0 sm:bg-white sm:rounded-lg sm:shadow-md sm:overflow-hidden">
+  {/* Tableau desktop */}
+  <table className="hidden sm:table w-full">
+    <thead>
+      <tr className="bg-slate-100 text-left">
+        <th className="px-4 py-3 font-semibold text-slate-700">Nom</th>
+        <th className="px-4 py-3 font-semibold text-slate-700">Prix unitaire</th>
+        <th className="px-4 py-3 font-semibold text-slate-700">Unité</th>
+        <th className="px-4 py-3 font-semibold text-slate-700 text-right">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {prestations.map((p) => (
+        <tr key={p.id} className="border-t border-slate-200 hover:bg-slate-50">
+          <td className="px-4 py-3 text-slate-800">{p.nom}</td>
+          <td className="px-4 py-3 text-slate-600">{p.prix_unitaire.toFixed(2)} €</td>
+          <td className="px-4 py-3 text-slate-600">{formatUnite(p.unite)}</td>
+          <td className="px-4 py-3 text-right">
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => openEditForm(p)}
+                className="flex items-center gap-1 px-3 py-1.5 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition text-sm font-medium"
+              >
+                <Pencil className="w-4 h-4" />
+                Modifier
+              </button>
+              <button
+                onClick={() => setPrestationToDelete(p)}
+                className="flex items-center gap-1 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
+              >
+                <Trash2 className="w-4 h-4" />
+                Supprimer
+              </button>
+            </div>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+
+  {/* Cartes mobile */}
+  <div className="sm:hidden space-y-3">
+    {prestations.map((p) => (
+      <div key={p.id} className="bg-white rounded-xl shadow-sm border border-slate-200 px-4 py-4">
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <p className="font-semibold text-slate-800">{p.nom}</p>
+            <p className="text-sm text-slate-500">{p.prix_unitaire.toFixed(2)} € · {formatUnite(p.unite)}</p>
           </div>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => openEditForm(p)}
+            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition text-sm font-medium"
+          >
+            <Pencil className="w-4 h-4" />
+            Modifier
+          </button>
+          <button
+            onClick={() => setPrestationToDelete(p)}
+            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
+          >
+            <Trash2 className="w-4 h-4" />
+            Supprimer
+          </button>
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
         )}
       </main>
 
