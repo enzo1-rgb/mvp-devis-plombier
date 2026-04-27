@@ -3,7 +3,7 @@ import { supabase } from "../lib/supabase";
 import { Quote } from "../lib/types";
 import {
   Plus, User, Wrench, LogOut, Search,
-  Receipt, CheckCircle, Eye, Edit2, Trash2, TrendingUp,
+  Receipt, Eye, Edit2, Trash2, TrendingUp,
   ChevronLeft, ChevronRight, Filter, Bell,
 } from "lucide-react";
 import { User as SupabaseUser } from "@supabase/supabase-js";
@@ -28,6 +28,8 @@ interface DevisRow {
   created_at: string | null;
   signe_par_client: boolean | null;
   date_signature: string | null;
+  facture_generee_at: string | null;
+  devis_modifie_at: string | null;
   clients: { nom: string; adresse: string } | null;
 }
 
@@ -49,6 +51,8 @@ function toQuote(row: DevisRow): Quote {
     created_at: row.created_at ?? undefined,
     signe_par_client: row.signe_par_client ?? false,
     date_signature: row.date_signature ?? undefined,
+    facture_generee_at: row.facture_generee_at ?? undefined,
+    devis_modifie_at: row.devis_modifie_at ?? undefined,
   };
 }
 
@@ -78,7 +82,6 @@ export default function Dashboard({
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [quoteToDelete, setQuoteToDelete] = useState<Quote | null>(null);
   const [toast, setToast] = useState<{ message: string; ok: boolean } | null>(null);
-  const [acceptLoading, setAcceptLoading] = useState<string | null>(null);
   const [relanceLoading, setRelanceLoading] = useState<string | null>(null);
 
   const [statutFilter, setStatutFilter] = useState<StatutFilter>('tous');
@@ -117,9 +120,8 @@ export default function Dashboard({
 
   const isOverdue = (inv: any) => {
     if (inv.statut === 'payée') return false;
-    const delai = 30;
     const base = new Date(inv.date_emission || inv.created_at);
-    base.setDate(base.getDate() + delai);
+    base.setDate(base.getDate() + 30);
     return new Date() > base;
   };
 
@@ -128,52 +130,41 @@ export default function Dashboard({
     try {
       const { data: clientData } = await supabase
         .from('clients').select('nom, email, adresse').eq('id', inv.client_id).single();
-
       if (!clientData?.email) {
-        setToast({ message: 'Aucun email client enregistré pour cette facture.', ok: false });
+        setToast({ message: 'Aucun email client enregistré.', ok: false });
         return;
       }
-
       const { data: plombierData } = await supabase
         .from('plombiers').select('*').eq('id', user.id).single();
-
       const dateEmission = new Date(inv.date_emission || inv.created_at);
-      const delai = plombierData?.delai_paiement ?? 30;
       const dateEcheance = new Date(dateEmission);
-      dateEcheance.setDate(dateEcheance.getDate() + delai);
+      dateEcheance.setDate(dateEcheance.getDate() + (plombierData?.delai_paiement ?? 30));
       const joursRetard = Math.max(0, Math.floor((Date.now() - dateEcheance.getTime()) / (1000 * 60 * 60 * 24)));
       const numeroRelance = (inv.nb_relances ?? 0) + 1;
 
       const html = `
         <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
           <h2 style="color:#d97706">⚠️ Rappel de paiement — Facture ${inv.numero_facture}</h2>
-          <p style="color:#6b7280">Relance n°${numeroRelance}${joursRetard > 0 ? ` — ${joursRetard} jour${joursRetard > 1 ? 's' : ''} de retard` : ''}</p>
-          ${plombierData ? `
-          <div style="margin:20px 0;padding:15px;background:#fffbeb;border-left:4px solid #f59e0b;border-radius:4px">
+          <p style="color:#6b7280">Relance n°${numeroRelance}${joursRetard > 0 ? ` — ${joursRetard}j de retard` : ''}</p>
+          ${plombierData ? `<div style="margin:20px 0;padding:15px;background:#fffbeb;border-left:4px solid #f59e0b;border-radius:4px">
             <strong>${plombierData.nom_entreprise || `${plombierData.prenom} ${plombierData.nom}`}</strong><br/>
             <span style="color:#6b7280">${plombierData.adresse || ''}<br/>SIRET : ${plombierData.siret || ''}</span>
           </div>` : ''}
           <p>Bonjour <strong>${clientData.nom}</strong>,</p>
-          <p>Sauf erreur de notre part, la facture <strong>${inv.numero_facture}</strong> d'un montant de <strong>${Number(inv.montant_ttc).toFixed(2)} €</strong> est toujours en attente de règlement.</p>
+          <p>La facture <strong>${inv.numero_facture}</strong> de <strong>${Number(inv.montant_ttc).toFixed(2)} €</strong> est en attente de règlement.</p>
           <p>Date d'échéance : <strong>${dateEcheance.toLocaleDateString('fr-FR')}</strong></p>
           <div style="margin:24px 0;padding:16px;background:#f9fafb;border-radius:8px;text-align:center">
             <p style="font-size:24px;font-weight:bold;color:#d97706;margin:0">${Number(inv.montant_ttc).toFixed(2)} €</p>
-            <p style="color:#6b7280;margin:4px 0 0">à régler dès que possible</p>
           </div>
           ${plombierData?.iban ? `<p style="font-size:13px">Virement : <strong style="font-family:monospace">${plombierData.iban}</strong></p>` : ''}
-          <p style="font-size:12px;color:#9ca3af;margin-top:24px">En cas de retard, pénalités au taux de ${plombierData?.taux_penalite || '3 fois le taux légal'} + indemnité forfaitaire de 40 € (art. L441-10 Code de Commerce).</p>
+          <p style="font-size:12px;color:#9ca3af">Pénalités au taux de ${plombierData?.taux_penalite || '3 fois le taux légal'} + 40 € d'indemnité forfaitaire.</p>
         </div>`;
 
       const res = await fetch(`${import.meta.env.VITE_EMAIL_SERVER_URL}/send-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: clientData.email,
-          subject: `Rappel de paiement — Facture ${inv.numero_facture}`,
-          html,
-        }),
+        body: JSON.stringify({ to: clientData.email, subject: `Rappel de paiement — Facture ${inv.numero_facture}`, html }),
       });
-
       if (!res.ok) throw new Error('Erreur envoi email');
 
       await supabase.from('factures').update({
@@ -184,44 +175,11 @@ export default function Dashboard({
       setInvoices(prev => prev.map(f =>
         f.id === inv.id ? { ...f, nb_relances: numeroRelance, derniere_relance: new Date().toISOString() } : f
       ));
-
-      setToast({ message: `Relance n°${numeroRelance} envoyée à ${clientData.email}`, ok: true });
-    } catch (err) {
-      setToast({ message: 'Erreur lors de l\'envoi de la relance.', ok: false });
+      setToast({ message: `Relance n°${numeroRelance} envoyée !`, ok: true });
+    } catch {
+      setToast({ message: "Erreur lors de l'envoi de la relance.", ok: false });
     } finally {
       setRelanceLoading(null);
-    }
-  };
-
-  const handleAcceptQuote = async (quote: Quote) => {
-    setAcceptLoading(quote.id ?? null);
-    try {
-      const { data: existing } = await supabase
-        .from("factures").select("id").eq("devis_id", quote.id).maybeSingle();
-      if (existing) {
-        setToast({ message: "Une facture existe déjà pour ce devis.", ok: false });
-        setViewMode("factures");
-        return;
-      }
-      const { error: updateError } = await supabase
-        .from("devis").update({ statut: "accepté" }).eq("id", quote.id);
-      if (updateError) throw updateError;
-      const { data: numData, error: numError } = await supabase.rpc('generate_numero_facture', { p_plombier_id: user.id });
-      if (numError) throw numError;
-      const numFacture = numData as string;
-      const { error: insertError } = await supabase.from("factures").insert({
-        plombier_id: user.id, devis_id: quote.id, client_id: quote.client_id,
-        numero_facture: numFacture, montant_ht: quote.total_ht, tva: quote.tva,
-        tva_rate: quote.tva_rate, montant_ttc: quote.total_ttc, statut: "non_payée",
-      });
-      if (insertError) throw insertError;
-      setToast({ message: `Facture ${numFacture} générée !`, ok: true });
-      setViewMode("factures");
-    } catch (err) {
-      console.error("Erreur facture :", err);
-      setToast({ message: "Erreur lors de la création de la facture.", ok: false });
-    } finally {
-      setAcceptLoading(null);
     }
   };
 
@@ -277,10 +235,8 @@ export default function Dashboard({
 
       {toast && (
         <div className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl font-bold text-sm text-white transition-all ${
-          toast.ok ? "bg-green-500 shadow-green-200" : "bg-red-500 shadow-red-200"
-        }`}>
-          {toast.message}
-        </div>
+          toast.ok ? "bg-green-500" : "bg-red-500"
+        }`}>{toast.message}</div>
       )}
 
       <header className="bg-slate-900 text-white sticky top-0 z-30 shadow-lg h-16 flex items-center">
@@ -291,15 +247,14 @@ export default function Dashboard({
             </div>
             <span className="font-bold">ProPlomb</span>
           </div>
-
           <nav className="flex items-center gap-1.5">
             <button
-              onClick={() => { 
-                if (viewMode === "factures") {
-                  setViewMode("devis");
-                } else {
+              onClick={() => {
+                if (viewMode === "devis") {
                   setViewMode("factures");
                   setStatutFactureFilter("non_payée");
+                } else {
+                  setViewMode("devis");
                 }
               }}
               className={`relative flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all ${
@@ -407,9 +362,7 @@ export default function Dashboard({
         )}
 
         <p className="text-xs text-slate-400 font-medium mb-3">
-          {viewMode === 'devis'
-            ? `${filteredQuotes.length} devis`
-            : `${filteredInvoices.length} facture${filteredInvoices.length > 1 ? 's' : ''}`}
+          {viewMode === 'devis' ? `${filteredQuotes.length} devis` : `${filteredInvoices.length} facture${filteredInvoices.length > 1 ? 's' : ''}`}
         </p>
 
         <div className="space-y-4">
@@ -452,13 +405,6 @@ export default function Dashboard({
                     <button onClick={() => onEditQuote(quote)} className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-blue-600 border-r border-slate-50">
                       <Edit2 className="w-4 h-4" /> Modifier
                     </button>
-                    {quote.status === "envoyé" && (
-                      <button onClick={() => handleAcceptQuote(quote)} disabled={acceptLoading === quote.id}
-                        className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-green-600 hover:bg-green-50 border-r border-slate-50 disabled:opacity-40 transition">
-                        <CheckCircle className="w-4 h-4" />
-                        {acceptLoading === quote.id ? "…" : "Accepter"}
-                      </button>
-                    )}
                     <button onClick={() => setQuoteToDelete(quote)} className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-300 hover:text-red-500">
                       <Trash2 className="w-4 h-4" /> Suppr.
                     </button>
@@ -472,7 +418,7 @@ export default function Dashboard({
                 <Receipt className="w-12 h-12 mx-auto text-slate-200 mb-3" />
                 <p className="text-slate-400 font-medium">Aucune facture</p>
                 <p className="text-slate-300 text-sm mt-1 px-8">
-                  {hasActiveFilters ? 'Essayez de modifier vos filtres' : 'Les factures sont générées automatiquement quand un devis est accepté'}
+                  {hasActiveFilters ? 'Essayez de modifier vos filtres' : 'Les factures sont générées depuis l\'aperçu d\'un devis accepté'}
                 </p>
               </div>
             ) : (
@@ -502,16 +448,12 @@ export default function Dashboard({
                       </div>
                     </div>
                     <div className="flex border-t border-slate-50 bg-slate-50/30">
-                      <button onClick={() => onViewInvoice(inv)}
-                        className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-slate-600 transition border-r border-slate-50">
+                      <button onClick={() => onViewInvoice(inv)} className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-slate-600 transition border-r border-slate-50">
                         <Eye className="w-4 h-4" /> Voir
                       </button>
                       {peutRelancer && (
-                        <button
-                          onClick={() => handleRelance(inv)}
-                          disabled={relanceLoading === inv.id}
-                          className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-amber-600 hover:bg-amber-50 transition disabled:opacity-40"
-                        >
+                        <button onClick={() => handleRelance(inv)} disabled={relanceLoading === inv.id}
+                          className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-amber-600 hover:bg-amber-50 transition disabled:opacity-40">
                           <Bell className="w-4 h-4" />
                           {relanceLoading === inv.id ? '…' : 'Relancer'}
                         </button>

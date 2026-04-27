@@ -65,6 +65,8 @@ export interface Devis {
   created_at?: string;
   signe_par_client?: boolean;
   date_signature?: string;
+  facture_generee_at?: string;
+  devis_modifie_at?: string;
 }
 
 /** Représentation d'un devis avec infos client (pour l'affichage) */
@@ -85,6 +87,8 @@ export interface Quote {
   created_at?: string;
   signe_par_client?: boolean;
   date_signature?: string;
+  facture_generee_at?: string;
+  devis_modifie_at?: string;
 }
 
 /** Ligne de devis pour l'affichage */
