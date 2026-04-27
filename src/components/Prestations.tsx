@@ -287,7 +287,7 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => openEditForm(p)}
-                className="flex items-center gap-1 px-3 py-1.5 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition text-sm font-medium"
+                className="flex items-center gap-1 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
               >
                 <Pencil className="w-4 h-4" />
                 Modifier
@@ -319,7 +319,7 @@ export default function Prestations({ user, onBack }: PrestationsProps) {
         <div className="flex gap-2">
           <button
             onClick={() => openEditForm(p)}
-            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition text-sm font-medium"
+            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm font-medium"
           >
             <Pencil className="w-4 h-4" />
             Modifier
