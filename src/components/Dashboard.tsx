@@ -465,7 +465,7 @@ export default function Dashboard({
               })
             )
           )}
-        </div>
+    
 
         {viewMode === 'devis' && totalPagesDevis > 1 && (
           <div className="flex items-center justify-center gap-3 mt-6">
@@ -494,6 +494,7 @@ export default function Dashboard({
             </button>
           </div>
         )}
+        </div>
       </main>
 
       {quoteToDelete && (
