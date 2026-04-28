@@ -58,6 +58,7 @@ function toQuote(row: DevisRow): Quote {
 
 interface DashboardProps {
   user: SupabaseUser;
+  initialTab?: "devis" | "factures";
   onCreateQuote: () => void;
   onViewQuote: (quote: Quote) => void;
   onEditQuote: (quote: Quote) => void;
@@ -69,11 +70,11 @@ type PeriodeFilter = 'tout' | 'mois' | '3mois';
 type StatutFactureFilter = 'tous' | 'payée' | 'non_payée';
 
 export default function Dashboard({
-  user, onCreateQuote, onViewQuote, onEditQuote, onViewInvoice,
+  user, initialTab, onCreateQuote, onViewQuote, onEditQuote, onViewInvoice,
 }: DashboardProps) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
-  const [viewMode, setViewMode] = useState<"devis" | "factures">("devis");
+  const [viewMode, setViewMode] = useState<"devis" | "factures">(initialTab ?? "devis");
   const [showProfile, setShowProfile] = useState(false);
   const [showPrestations, setShowPrestations] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);

@@ -372,17 +372,17 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
         </div>
       )}
 
-      <header className="bg-blue-600 text-white shadow-lg">
-        <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center">
-            <button onClick={onBack} className="mr-4 p-2 hover:bg-blue-700 rounded-lg transition">
-              <ArrowLeft className="w-6 h-6" />
-            </button>
-            <FileText className="w-8 h-8 mr-3" />
-            <h1 className="text-2xl sm:text-3xl font-bold">Aperçu du Devis</h1>
-          </div>
-        </div>
-      </header>
+<header className="bg-slate-900 text-white shadow-lg">
+  <div className="max-w-5xl mx-auto px-4 h-16 flex items-center gap-3">
+    <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-lg transition flex-shrink-0">
+      <ArrowLeft className="w-5 h-5" />
+    </button>
+    <div className="flex items-center gap-2">
+      <FileText className="w-6 h-6" />
+      <h1 className="text-lg font-bold leading-tight">Aperçu du Devis</h1>
+    </div>
+  </div>
+</header>
 
       <main className="quote-main max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="quote-content bg-white rounded-lg shadow-lg p-8 mb-6">

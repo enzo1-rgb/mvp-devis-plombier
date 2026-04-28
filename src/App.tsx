@@ -14,8 +14,8 @@ export default function App() {
   const [currentView, setCurrentView] = useState<"dashboard" | "create" | "preview" | "invoice">("dashboard");
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [dashboardInitialTab, setDashboardInitialTab] = useState<"devis" | "factures">("devis");
 
-  // Détection du token client dans l'URL
   const urlParams = new URLSearchParams(window.location.search);
   const clientToken = urlParams.get('token');
 
@@ -30,7 +30,6 @@ export default function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Si un token est présent dans l'URL → portail client public
   if (clientToken) {
     return <ClientPortal token={clientToken} />;
   }
@@ -56,17 +55,25 @@ export default function App() {
   };
 
   const handleBackToDashboard = () => {
+    setDashboardInitialTab("devis");
     setCurrentView("dashboard");
     setSelectedQuote(null);
     setSelectedInvoice(null);
   };
 
+  const handleBackFromInvoice = () => {
+    setDashboardInitialTab("factures");
+    setCurrentView("dashboard");
+    setSelectedInvoice(null);
+  };
+
   const handleQuoteCreated = () => {
+    setDashboardInitialTab("devis");
     setCurrentView("dashboard");
   };
 
   if (loading) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
       <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
     </div>
   );
@@ -78,6 +85,7 @@ export default function App() {
       {currentView === "dashboard" && (
         <Dashboard
           user={user}
+          initialTab={dashboardInitialTab}
           onCreateQuote={handleCreateQuote}
           onViewQuote={handleViewQuote}
           onEditQuote={handleEditQuote}
@@ -95,7 +103,7 @@ export default function App() {
         <QuotePreview quote={selectedQuote} onBack={handleBackToDashboard} />
       )}
       {currentView === "invoice" && selectedInvoice && (
-        <InvoicePreview invoice={selectedInvoice} onBack={handleBackToDashboard} />
+        <InvoicePreview invoice={selectedInvoice} onBack={handleBackFromInvoice} />
       )}
     </>
   );
