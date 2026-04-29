@@ -49,6 +49,7 @@ Pensée pour la gestion administrative depuis le bureau. Tableau des prestations
 ### Authentification
 - Inscription et connexion sécurisées via Supabase Auth
 - Isolation complète des données par utilisateur (Row Level Security)
+- Politique de confidentialité & RGPD
 
 ### Statistiques
 - Tableau de bord avec chiffre d'affaires, nombre de devis et de factures
