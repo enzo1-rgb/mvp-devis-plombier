@@ -242,7 +242,8 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
       )}
 
 <header className="bg-slate-900 text-white shadow-lg print:hidden">
-  <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+  {/* Desktop — une seule ligne */}
+  <div className="hidden sm:flex max-w-5xl mx-auto px-4 h-16 items-center justify-between">
     <div className="flex items-center gap-3">
       <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-lg transition flex-shrink-0">
         <ArrowLeft className="w-5 h-5" />
@@ -252,11 +253,11 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
         <h1 className="text-lg font-bold leading-tight">Aperçu de la Facture</h1>
       </div>
     </div>
-    <div className="flex gap-2 flex-wrap sm:justify-end">
+    <div className="flex gap-2">
       <button
         onClick={togglePayment}
         disabled={toggling}
-        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold text-xs transition disabled:opacity-50 flex-1 sm:flex-none justify-center ${statut === 'payée' ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold text-xs transition disabled:opacity-50 ${statut === 'payée' ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-white text-slate-700 hover:bg-slate-50'}`}
       >
         <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
         {statut === 'payée' ? 'Payée' : 'Marquer payée'}
@@ -264,22 +265,67 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
       <button
         onClick={downloadPDF}
         disabled={generatingPDF}
-        className="flex items-center gap-1.5 px-3 py-2 bg-slate-700 text-white rounded-lg font-semibold text-xs hover:bg-slate-600 transition flex-1 sm:flex-none justify-center disabled:opacity-50"
+        className="flex items-center gap-1.5 px-3 py-2 bg-slate-700 text-white rounded-lg font-semibold text-xs hover:bg-slate-600 transition disabled:opacity-50"
       >
         <Download className="w-4 h-4 flex-shrink-0" />
         {generatingPDF ? 'Génération...' : 'PDF'}
       </button>
       <button
         onClick={() => setShowEmailForm(!showEmailForm)}
-        className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 text-white rounded-lg font-semibold text-xs hover:bg-emerald-600 transition flex-1 sm:flex-none justify-center"
+        className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 text-white rounded-lg font-semibold text-xs hover:bg-emerald-600 transition"
       >
         <Mail className="w-4 h-4 flex-shrink-0" /> Email
       </button>
       <button
         onClick={() => window.print()}
-        className="flex items-center gap-1.5 px-3 py-2 bg-white/20 text-white rounded-lg font-semibold text-xs hover:bg-white/30 transition flex-1 sm:flex-none justify-center"
+        className="flex items-center gap-1.5 px-3 py-2 bg-white/20 text-white rounded-lg font-semibold text-xs hover:bg-white/30 transition"
       >
         <Printer className="w-4 h-4 flex-shrink-0" /> Imprimer
+      </button>
+    </div>
+  </div>
+
+  {/* Mobile — deux lignes */}
+  <div className="sm:hidden px-4 pt-3 pb-3">
+    <div className="flex items-center gap-3 mb-3">
+      <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-lg transition flex-shrink-0">
+        <ArrowLeft className="w-5 h-5" />
+      </button>
+      <div className="flex items-center gap-2">
+        <Receipt className="w-5 h-5" />
+        <h1 className="text-base font-bold leading-tight">Aperçu de la Facture</h1>
+      </div>
+    </div>
+    <div className="grid grid-cols-4 gap-1.5">
+      <button
+        onClick={togglePayment}
+        disabled={toggling}
+        className={`flex flex-col items-center justify-center gap-1 py-2 rounded-lg font-semibold text-[10px] transition disabled:opacity-50 ${statut === 'payée' ? 'bg-green-500 text-white' : 'bg-white text-slate-700'}`}
+      >
+        <CheckCircle2 className="w-4 h-4" />
+        {statut === 'payée' ? 'Payée' : 'Paiement'}
+      </button>
+      <button
+        onClick={downloadPDF}
+        disabled={generatingPDF}
+        className="flex flex-col items-center justify-center gap-1 py-2 bg-slate-700 text-white rounded-lg font-semibold text-[10px] transition disabled:opacity-50"
+      >
+        <Download className="w-4 h-4" />
+        PDF
+      </button>
+      <button
+        onClick={() => setShowEmailForm(!showEmailForm)}
+        className="flex flex-col items-center justify-center gap-1 py-2 bg-emerald-500 text-white rounded-lg font-semibold text-[10px] transition"
+      >
+        <Mail className="w-4 h-4" />
+        Email
+      </button>
+      <button
+        onClick={() => window.print()}
+        className="flex flex-col items-center justify-center gap-1 py-2 bg-white/20 text-white rounded-lg font-semibold text-[10px] transition"
+      >
+        <Printer className="w-4 h-4" />
+        Imprimer
       </button>
     </div>
   </div>
