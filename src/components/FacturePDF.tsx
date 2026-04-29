@@ -14,12 +14,12 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     paddingBottom: 20,
     borderBottomWidth: 2,
-    borderBottomColor: '#7c3aed',
+    borderBottomColor: '#475569',
   },
   title: {
     fontSize: 28,
     fontFamily: 'Helvetica-Bold',
-    color: '#7c3aed',
+    color: '#475569',
     marginBottom: 4,
   },
   ref: {
@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
   infoBox: {
     backgroundColor: '#f5f3ff',
     borderLeftWidth: 3,
-    borderLeftColor: '#7c3aed',
+    borderLeftColor: '#475569',
     padding: 10,
     borderRadius: 4,
   },
@@ -71,7 +71,7 @@ const styles = StyleSheet.create({
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#7c3aed',
+    backgroundColor: '#475569',
     paddingVertical: 8,
     paddingHorizontal: 8,
     borderRadius: 4,
@@ -112,10 +112,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     marginTop: 4,
     borderTopWidth: 2,
-    borderTopColor: '#7c3aed',
+    borderTopColor: '#475569',
   },
-  totalTTCLabel: { fontSize: 13, fontFamily: 'Helvetica-Bold', color: '#7c3aed' },
-  totalTTCValue: { fontSize: 13, fontFamily: 'Helvetica-Bold', color: '#7c3aed' },
+  totalTTCLabel: { fontSize: 13, fontFamily: 'Helvetica-Bold', color: '#475569' },
+  totalTTCValue: { fontSize: 13, fontFamily: 'Helvetica-Bold', color: '#475569' },
   ibanBox: {
     marginTop: 16,
     backgroundColor: '#f0fdf4',
