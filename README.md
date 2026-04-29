@@ -61,6 +61,8 @@ Pensée pour la gestion administrative depuis le bureau. Tableau des prestations
 - Relances automatiques pour les factures impayées
 - Export comptable (CSV)
 - Multi-utilisateurs / gestion d'équipe
+- Gallerie photos
+- Fonctionnalités vocales
 
 ---
 
