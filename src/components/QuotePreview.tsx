@@ -154,8 +154,11 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       const now = new Date().toISOString();
       await supabase
         .from('devis')
-        .update({ facture_generee_at: now })
+        .update({ facture_generee_at: now, devis_modifie_at: now })
         .eq('id', quote.id);
+      
+      setFactureGenereeAt(now);
+      setDevisModifieAt(now);
 
       setFactureGenereeAt(now);
       setToast({ message: `Facture ${numFacture} générée !`, ok: true });
