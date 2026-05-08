@@ -110,9 +110,11 @@ app.post('/send-email', rateLimiter, async (req, res) => {
     const data = await response.json();
 
     if (!response.ok) {
-      return res.status(response.status).json({
-        error: data.message || `Resend API error: ${response.status}`,
-      });
+      const rawError = data.message || '';
+      const safeError = rawError.includes('testing emails') || rawError.includes('email address') || rawError.includes('verify a domain')
+        ? 'Fonctionnalité indisponible pour le moment, réessayez plus tard.'
+        : rawError || `Erreur ${response.status}`;
+      return res.status(response.status).json({ error: safeError });
     }
 
     res.json(data);

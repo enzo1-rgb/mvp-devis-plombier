@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Quote, QuoteItem, Plombier } from '../lib/types';
-import { ArrowLeft, FileText, Mail, Link, Download, Receipt } from 'lucide-react';
+import { ArrowLeft, FileText, Mail, Link, Download, Receipt, Printer } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer';
 import DevisPDF from './DevisPDF';
 
@@ -39,9 +39,6 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
   const tvaTaux = quote.tva_rate ?? 0.10;
   const tvaPct = (tvaTaux * 100).toFixed(1);
 
-  // Facture peut être (re)générée si :
-  // - pas encore générée, OU
-  // - devis modifié après la dernière génération
   const peutGenererFacture =
     status === 'accepté' && (
       !factureGenereeAt ||
@@ -50,9 +47,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
 
   const factureDejaGeneree = !!factureGenereeAt && !peutGenererFacture;
 
-  useEffect(() => {
-    loadData();
-  }, [quote.id]);
+  useEffect(() => { loadData(); }, [quote.id]);
 
   useEffect(() => {
     if (!toast) return;
@@ -71,11 +66,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       const { data: sessionData } = await supabase.auth.getSession();
       const userId = sessionData.session?.user?.id;
       if (!userId) return;
-      const { data, error } = await supabase
-        .from('plombiers')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      const { data, error } = await supabase.from('plombiers').select('*').eq('id', userId).single();
       if (error) throw error;
       setPlombier(data as Plombier);
     } catch (error) {
@@ -91,15 +82,13 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
         .select('id, description, quantite, prix_unitaire, montant_ht')
         .eq('devis_id', quote.id);
       if (error) throw error;
-      setItems(
-        (data || []).map((r: LigneDevisRow) => ({
-          id: r.id,
-          description: r.description,
-          quantite: Number(r.quantite) || 0,
-          prix_unitaire: Number(r.prix_unitaire) || 0,
-          montant_ht: Number(r.montant_ht) || 0,
-        }))
-      );
+      setItems((data || []).map((r: LigneDevisRow) => ({
+        id: r.id,
+        description: r.description,
+        quantite: Number(r.quantite) || 0,
+        prix_unitaire: Number(r.prix_unitaire) || 0,
+        montant_ht: Number(r.montant_ht) || 0,
+      })));
     } catch (error) {
       console.error('Erreur lors du chargement des lignes:', error);
     }
@@ -108,10 +97,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
   const updateStatus = async (newStatus: Quote['status']) => {
     if (!quote.id) return;
     try {
-      const { error } = await supabase
-        .from('devis')
-        .update({ statut: newStatus })
-        .eq('id', quote.id);
+      const { error } = await supabase.from('devis').update({ statut: newStatus }).eq('id', quote.id);
       if (error) throw error;
       setStatus(newStatus);
     } catch (error) {
@@ -126,17 +112,12 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       const userId = sessionData.session?.user?.id;
       if (!userId) throw new Error('Non authentifié');
 
-      // Supprime l'ancienne facture si elle existe (cas regénération après modif)
       await supabase.from('factures').delete().eq('devis_id', quote.id);
 
-      // Génère le numéro séquentiel
-      const { data: numData, error: numError } = await supabase.rpc('generate_numero_facture', {
-        p_plombier_id: userId,
-      });
+      const { data: numData, error: numError } = await supabase.rpc('generate_numero_facture', { p_plombier_id: userId });
       if (numError) throw numError;
       const numFacture = numData as string;
 
-      // Crée la facture
       const { error: insertError } = await supabase.from('factures').insert({
         plombier_id: userId,
         devis_id: quote.id,
@@ -150,17 +131,10 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       });
       if (insertError) throw insertError;
 
-      // Enregistre la date de génération sur le devis
       const now = new Date().toISOString();
-      await supabase
-        .from('devis')
-        .update({ facture_generee_at: now, devis_modifie_at: now })
-        .eq('id', quote.id);
-      
+      await supabase.from('devis').update({ facture_generee_at: now, devis_modifie_at: now }).eq('id', quote.id);
       setFactureGenereeAt(now);
       setDevisModifieAt(now);
-
-      setFactureGenereeAt(now);
       setToast({ message: `Facture ${numFacture} générée !`, ok: true });
     } catch (err) {
       console.error(err);
@@ -177,11 +151,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
 
   const copyClientLink = async () => {
     if (!quote.id) return;
-    const { data } = await supabase
-      .from('devis')
-      .select('token')
-      .eq('id', quote.id)
-      .single();
+    const { data } = await supabase.from('devis').select('token').eq('id', quote.id).single();
     if (!data?.token) return;
     const url = `${window.location.origin}?token=${data.token}`;
     await navigator.clipboard.writeText(url);
@@ -194,10 +164,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
     try {
       const dateEmission = quote.date_emission
         ? new Date(quote.date_emission).toLocaleDateString('fr-FR')
-        : quote.created_at
-          ? new Date(quote.created_at).toLocaleDateString('fr-FR')
-          : '-';
-
+        : quote.created_at ? new Date(quote.created_at).toLocaleDateString('fr-FR') : '-';
       const dateValidite = quote.date_emission
         ? new Date(new Date(quote.date_emission).getTime() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR')
         : undefined;
@@ -300,12 +267,10 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
   const sendEmail = async () => {
     const email = clientEmail.trim();
     if (!email) { setEmailError('Veuillez saisir une adresse email valide.'); return; }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) { setEmailError('Adresse email invalide.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setEmailError('Adresse email invalide.'); return; }
 
     setEmailError(null);
     setSendingEmail(true);
-
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const plombierId = quote.plombier_id ?? sessionData.session?.user?.id;
@@ -313,10 +278,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
 
       if (plombierId) {
         const { data: plombierRow, error: plombierError } = await supabase
-          .from('plombiers')
-          .select('nom, prenom, adresse, siret, nom_entreprise')
-          .eq('id', plombierId)
-          .single();
+          .from('plombiers').select('nom, prenom, adresse, siret, nom_entreprise').eq('id', plombierId).single();
         if (!plombierError && plombierRow) plombierData = plombierRow;
       }
 
@@ -342,14 +304,14 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
+      if (!res.ok) throw new Error(data.error || 'Fonctionnalité indisponible pour le moment, réessayez plus tard.');
 
       await updateStatus('envoyé');
       setShowEmailForm(false);
       setClientEmail('');
-      alert('Devis envoyé par email avec succès.');
+      setToast({ message: 'Devis envoyé par email avec succès.', ok: true });
     } catch (err) {
-      setEmailError(err instanceof Error ? err.message : "Erreur lors de l'envoi.");
+      setEmailError(err instanceof Error ? err.message : 'Fonctionnalité indisponible pour le moment, réessayez plus tard.');
     } finally {
       setSendingEmail(false);
     }
@@ -375,17 +337,129 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
         </div>
       )}
 
-<header className="bg-slate-900 text-white shadow-lg">
-  <div className="max-w-5xl mx-auto px-4 h-16 flex items-center gap-3">
-    <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-lg transition flex-shrink-0">
-      <ArrowLeft className="w-5 h-5" />
-    </button>
-    <div className="flex items-center gap-2">
-      <FileText className="w-6 h-6" />
-      <h1 className="text-lg font-bold leading-tight">Aperçu du Devis</h1>
-    </div>
-  </div>
-</header>
+      {/* ── Header desktop ── */}
+      <header className="bg-slate-900 text-white shadow-lg print:hidden">
+
+        {/* Desktop — une seule ligne */}
+        <div className="hidden sm:flex max-w-5xl mx-auto px-4 h-16 items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-lg transition flex-shrink-0">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <FileText className="w-6 h-6" />
+              <h1 className="text-lg font-bold leading-tight">Aperçu du Devis</h1>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={downloadPDF}
+              disabled={generatingPDF}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-700 text-white rounded-lg font-semibold text-xs hover:bg-slate-600 transition disabled:opacity-50"
+            >
+              <Download className="w-4 h-4" />
+              {generatingPDF ? 'Génération...' : 'PDF'}
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white/20 text-white rounded-lg font-semibold text-xs hover:bg-white/30 transition"
+            >
+              <Printer className="w-4 h-4" /> Imprimer
+            </button>
+            <button
+              onClick={() => { setShowEmailForm(!showEmailForm); setEmailError(null); setClientEmail(''); }}
+              className="flex items-center gap-1.5 px-3 py-2 bg-emerald-500 text-white rounded-lg font-semibold text-xs hover:bg-emerald-600 transition"
+            >
+              <Mail className="w-4 h-4" /> Email
+            </button>
+            <button
+              onClick={copyClientLink}
+              className="flex items-center gap-1.5 px-3 py-2 bg-blue-600 text-white rounded-lg font-semibold text-xs hover:bg-blue-700 transition"
+            >
+              <Link className="w-4 h-4" />
+              {linkCopied ? '✅ Copié !' : 'Lien client'}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile — deux lignes */}
+        <div className="sm:hidden px-4 pt-3 pb-3">
+          <div className="flex items-center gap-3 mb-3">
+            <button onClick={onBack} className="p-2 hover:bg-white/10 rounded-lg transition flex-shrink-0">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              <h1 className="text-base font-bold leading-tight">Aperçu du Devis</h1>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-1.5">
+            <button
+              onClick={downloadPDF}
+              disabled={generatingPDF}
+              className="flex flex-col items-center justify-center gap-1 py-2 bg-slate-700 text-white rounded-lg font-semibold text-[10px] transition disabled:opacity-50"
+            >
+              <Download className="w-4 h-4" />
+              PDF
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="flex flex-col items-center justify-center gap-1 py-2 bg-white/20 text-white rounded-lg font-semibold text-[10px] transition"
+            >
+              <Printer className="w-4 h-4" />
+              Imprimer
+            </button>
+            <button
+              onClick={() => { setShowEmailForm(!showEmailForm); setEmailError(null); setClientEmail(''); }}
+              className="flex flex-col items-center justify-center gap-1 py-2 bg-emerald-500 text-white rounded-lg font-semibold text-[10px] transition"
+            >
+              <Mail className="w-4 h-4" />
+              Email
+            </button>
+            <button
+              onClick={copyClientLink}
+              className="flex flex-col items-center justify-center gap-1 py-2 bg-blue-600 text-white rounded-lg font-semibold text-[10px] transition"
+            >
+              <Link className="w-4 h-4" />
+              {linkCopied ? '✅' : 'Lien'}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Formulaire email — sous le header */}
+      {showEmailForm && (
+        <div className="max-w-5xl mx-auto px-4 pt-4 print:hidden">
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-md">
+            <h3 className="font-bold text-gray-800 mb-3">Envoyer le devis par email</h3>
+            <div className="flex gap-3">
+              <input
+                type="email"
+                value={clientEmail}
+                onChange={(e) => { setClientEmail(e.target.value); setEmailError(null); }}
+                placeholder="client@exemple.fr"
+                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                disabled={sendingEmail}
+              />
+              <button
+                onClick={sendEmail}
+                disabled={sendingEmail}
+                className="px-5 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition disabled:opacity-50"
+              >
+                {sendingEmail ? 'Envoi...' : 'Envoyer'}
+              </button>
+              <button
+                onClick={() => { setShowEmailForm(false); setEmailError(null); setClientEmail(''); }}
+                disabled={sendingEmail}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition"
+              >
+                Annuler
+              </button>
+            </div>
+            {emailError && <p className="text-red-600 text-sm mt-2">{emailError}</p>}
+          </div>
+        </div>
+      )}
 
       <main className="quote-main max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <div className="quote-content bg-white rounded-lg shadow-lg p-8 mb-6">
@@ -397,9 +471,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                 Date :{' '}
                 {quote.date_emission
                   ? new Date(quote.date_emission).toLocaleDateString('fr-FR')
-                  : quote.created_at
-                    ? new Date(quote.created_at).toLocaleDateString('fr-FR')
-                    : '-'}
+                  : quote.created_at ? new Date(quote.created_at).toLocaleDateString('fr-FR') : '-'}
               </p>
               <p className="text-gray-600 text-sm">
                 Référence : {quote.numero ?? quote.id?.slice(0, 8).toUpperCase() ?? '-'}
@@ -474,7 +546,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             </div>
           </div>
 
-          {/* Bouton génération facture — visible uniquement si devis accepté */}
+          {/* Bouton génération facture */}
           {status === 'accepté' && (
             <div className="mb-8">
               {peutGenererFacture ? (
@@ -573,65 +645,6 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
             <p>Devis valable 30 jours à compter de la date d'émission</p>
             <p className="mt-1">{getMentionLegale()}</p>
           </div>
-        </div>
-
-        <div className="text-center space-y-4">
-          <div className="flex flex-wrap justify-center gap-3">
-            <button
-              onClick={downloadPDF}
-              disabled={generatingPDF}
-              className="flex items-center px-8 py-3 bg-slate-800 text-white rounded-lg hover:bg-slate-900 transition font-semibold shadow-md disabled:opacity-50"
-            >
-              <Download className="w-5 h-5 mr-2" />
-              {generatingPDF ? 'Génération...' : 'Télécharger PDF'}
-            </button>
-            <button
-              onClick={() => window.print()}
-              className="flex items-center px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold shadow-md"
-            >
-              Imprimer
-            </button>
-            <button
-              onClick={() => { setShowEmailForm(!showEmailForm); setEmailError(null); setClientEmail(''); }}
-              className="flex items-center px-8 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-semibold shadow-md"
-            >
-              <Mail className="w-5 h-5 mr-2" />
-              Envoyer par email
-            </button>
-            <button
-              onClick={copyClientLink}
-              className="flex items-center px-8 py-3 bg-blue-700 text-white rounded-lg hover:bg-blue-800 transition font-semibold shadow-md"
-            >
-              <Link className="w-5 h-5 mr-2" />
-              {linkCopied ? '✅ Lien copié !' : 'Copier le lien client'}
-            </button>
-          </div>
-
-          {showEmailForm && (
-            <div className="bg-white border border-gray-200 rounded-lg shadow-md p-6 max-w-md mx-auto text-left">
-              <h3 className="text-lg font-semibold text-gray-800 mb-3">Envoyer le devis par email</h3>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email du client</label>
-                <input
-                  type="email"
-                  value={clientEmail}
-                  onChange={(e) => { setClientEmail(e.target.value); setEmailError(null); }}
-                  placeholder="client@exemple.fr"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  disabled={sendingEmail}
-                />
-              </div>
-              {emailError && <p className="text-red-600 text-sm mb-3">{emailError}</p>}
-              <div className="flex gap-2">
-                <button onClick={sendEmail} disabled={sendingEmail} className="flex-1 flex items-center justify-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 transition font-medium">
-                  {sendingEmail ? 'Envoi en cours...' : 'Envoyer'}
-                </button>
-                <button onClick={() => { setShowEmailForm(false); setEmailError(null); setClientEmail(''); }} disabled={sendingEmail} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition">
-                  Annuler
-                </button>
-              </div>
-            </div>
-          )}
         </div>
       </main>
 
