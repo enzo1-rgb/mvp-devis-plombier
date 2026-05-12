@@ -3,12 +3,13 @@ import { supabase } from "../lib/supabase";
 import { Quote } from "../lib/types";
 import {
   Plus, User, Wrench, LogOut, Search,
-  Receipt, Eye, Edit2, Trash2, TrendingUp,
+  Receipt, Eye, Edit2, Trash2, TrendingUp, Users,
   ChevronLeft, ChevronRight, Filter, Bell,
 } from "lucide-react";
 import { User as SupabaseUser } from "@supabase/supabase-js";
 import Profile from "./Profile";
 import Prestations from "./Prestations";
+import Contacts from "./Contacts";
 import Analytics from "./Analytics";
 
 const PAGE_SIZE = 10;
@@ -78,6 +79,7 @@ export default function Dashboard({
   const [showProfile, setShowProfile] = useState(false);
   const [showPrestations, setShowPrestations] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showContacts, setShowContacts] = useState(false); 
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -196,6 +198,7 @@ export default function Dashboard({
   if (showProfile) return <Profile user={user} onBack={() => setShowProfile(false)} />;
   if (showPrestations) return <Prestations user={user} onBack={() => setShowPrestations(false)} />;
   if (showAnalytics) return <Analytics user={user} onBack={() => setShowAnalytics(false)} />;
+if (showContacts) return <Contacts user={user} onBack={() => setShowContacts(false)} />;
 
   const now = new Date();
   const filteredQuotes = quotes.filter((q) => {
@@ -271,8 +274,11 @@ export default function Dashboard({
               )}
             </button>
             <button onClick={() => setShowAnalytics(true)} className="p-2 text-slate-400 hover:text-white">
-              <TrendingUp className="w-5 h-5" />
-            </button>
+  <TrendingUp className="w-5 h-5" />
+</button>
+<button onClick={() => setShowContacts(true)} className="p-2 text-slate-400 hover:text-white">
+  <Users className="w-5 h-5" />
+</button>
             <button onClick={() => setShowPrestations(true)} className="p-2 text-slate-400 hover:text-white">
               <Wrench className="w-5 h-5" />
             </button>
