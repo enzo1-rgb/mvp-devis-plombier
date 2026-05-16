@@ -251,44 +251,44 @@ if (showContacts) return <Contacts user={user} onBack={() => setShowContacts(fal
             </div>
             <span className="font-bold">ProPlomb</span>
           </div>
-          <nav className="flex items-center gap-1.5">
-            <button
-              onClick={() => {
-                if (viewMode === "devis") {
-                  setViewMode("factures");
-                  setStatutFactureFilter("non_payée");
-                } else {
-                  setViewMode("devis");
-                }
-              }}
-              className={`relative flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all ${
-                viewMode === "factures" ? "bg-slate-600 text-white shadow-md" : "text-slate-400 hover:bg-white/10"
-              }`}
-            >
-              <Receipt className="w-5 h-5" />
-              <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-widest">Factures</span>
-              {nbRetard > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] font-black text-white flex items-center justify-center">
-                  {nbRetard}
-                </span>
-              )}
-            </button>
-            <button onClick={() => setShowAnalytics(true)} className="p-2 text-slate-400 hover:text-white">
-  <TrendingUp className="w-5 h-5" />
-</button>
-<button onClick={() => setShowContacts(true)} className="p-2 text-slate-400 hover:text-white">
-  <Users className="w-5 h-5" />
-</button>
-            <button onClick={() => setShowPrestations(true)} className="p-2 text-slate-400 hover:text-white">
-              <Wrench className="w-5 h-5" />
-            </button>
-            <button onClick={() => setShowProfile(true)} className="p-2 text-slate-400 hover:text-white">
-              <User className="w-5 h-5" />
-            </button>
-            <button onClick={() => setShowLogoutConfirm(true)} className="p-2 text-slate-600 hover:text-red-400">
-              <LogOut className="w-5 h-5" />
-            </button>
-          </nav>
+          <nav className="flex items-center gap-1 overflow-x-auto scrollbar-hide max-w-[60vw] sm:max-w-none">
+  <button
+    onClick={() => {
+      if (viewMode === "devis") {
+        setViewMode("factures");
+        setStatutFactureFilter("non_payée");
+      } else {
+        setViewMode("devis");
+      }
+    }}
+    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all flex-shrink-0 ${
+      viewMode === "factures" ? "bg-blue-600 text-white shadow-md" : "text-slate-400 hover:bg-white/10"
+    }`}
+  >
+    <Receipt className="w-5 h-5" />
+    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-widest">Factures</span>
+    {nbRetard > 0 && (
+      <span className="w-4 h-4 bg-red-500 rounded-full text-[9px] font-black text-white flex items-center justify-center flex-shrink-0">
+        {nbRetard}
+      </span>
+    )}
+  </button>
+  <button onClick={() => setShowAnalytics(true)} className="p-2 text-slate-400 hover:text-white flex-shrink-0">
+    <TrendingUp className="w-5 h-5" />
+  </button>
+  <button onClick={() => setShowContacts(true)} className="p-2 text-slate-400 hover:text-white flex-shrink-0">
+    <Users className="w-5 h-5" />
+  </button>
+  <button onClick={() => setShowPrestations(true)} className="p-2 text-slate-400 hover:text-white flex-shrink-0">
+    <Wrench className="w-5 h-5" />
+  </button>
+  <button onClick={() => setShowProfile(true)} className="p-2 text-slate-400 hover:text-white flex-shrink-0">
+    <User className="w-5 h-5" />
+  </button>
+  <button onClick={() => setShowLogoutConfirm(true)} className="p-2 text-slate-600 hover:text-red-400 flex-shrink-0">
+    <LogOut className="w-5 h-5" />
+  </button>
+</nav>
         </div>
       </header>
 
