@@ -64,7 +64,6 @@ Pensée pour la gestion administrative depuis le bureau. Tableau des prestations
 - Multi-utilisateurs / gestion d'équipe
 - Gallerie photos
 - Fonctionnalités vocales
-- Gestion de contacts
 
 ---
 
