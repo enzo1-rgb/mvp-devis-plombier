@@ -79,7 +79,7 @@ export default function Dashboard({
   const [showProfile, setShowProfile] = useState(false);
   const [showPrestations, setShowPrestations] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
-  const [showContacts, setShowContacts] = useState(false); 
+  const [showContacts, setShowContacts] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -198,7 +198,7 @@ export default function Dashboard({
   if (showProfile) return <Profile user={user} onBack={() => setShowProfile(false)} />;
   if (showPrestations) return <Prestations user={user} onBack={() => setShowPrestations(false)} />;
   if (showAnalytics) return <Analytics user={user} onBack={() => setShowAnalytics(false)} />;
-if (showContacts) return <Contacts user={user} onBack={() => setShowContacts(false)} />;
+  if (showContacts) return <Contacts user={user} onBack={() => setShowContacts(false)} />;
 
   const now = new Date();
   const filteredQuotes = quotes.filter((q) => {
@@ -252,43 +252,43 @@ if (showContacts) return <Contacts user={user} onBack={() => setShowContacts(fal
             <span className="font-bold">ProPlomb</span>
           </div>
           <nav className="flex items-center gap-1 overflow-x-auto scrollbar-hide max-w-[60vw] sm:max-w-none">
-  <button
-    onClick={() => {
-      if (viewMode === "devis") {
-        setViewMode("factures");
-        setStatutFactureFilter("non_payée");
-      } else {
-        setViewMode("devis");
-      }
-    }}
-    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all flex-shrink-0 ${
-      viewMode === "factures" ? "bg-blue-600 text-white shadow-md" : "text-slate-400 hover:bg-white/10"
-    }`}
-  >
-    <Receipt className="w-5 h-5" />
-    <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-widest">Factures</span>
-    {nbRetard > 0 && (
-      <span className="w-4 h-4 bg-red-500 rounded-full text-[9px] font-black text-white flex items-center justify-center flex-shrink-0">
-        {nbRetard}
-      </span>
-    )}
-  </button>
-  <button onClick={() => setShowAnalytics(true)} className="p-2 text-slate-400 hover:text-white flex-shrink-0">
-    <TrendingUp className="w-5 h-5" />
-  </button>
-  <button onClick={() => setShowContacts(true)} className="p-2 text-slate-400 hover:text-white flex-shrink-0">
-    <Users className="w-5 h-5" />
-  </button>
-  <button onClick={() => setShowPrestations(true)} className="p-2 text-slate-400 hover:text-white flex-shrink-0">
-    <Wrench className="w-5 h-5" />
-  </button>
-  <button onClick={() => setShowProfile(true)} className="p-2 text-slate-400 hover:text-white flex-shrink-0">
-    <User className="w-5 h-5" />
-  </button>
-  <button onClick={() => setShowLogoutConfirm(true)} className="p-2 text-slate-600 hover:text-red-400 flex-shrink-0">
-    <LogOut className="w-5 h-5" />
-  </button>
-</nav>
+            <button
+              onClick={() => {
+                if (viewMode === "devis") {
+                  setViewMode("factures");
+                  setStatutFactureFilter("non_payée");
+                } else {
+                  setViewMode("devis");
+                }
+              }}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all flex-shrink-0 ${
+                viewMode === "factures" ? "bg-blue-600 text-white shadow-md" : "text-slate-400 hover:bg-white/10"
+              }`}
+            >
+              <Receipt className="w-5 h-5" />
+              <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-widest">Factures</span>
+              {nbRetard > 0 && (
+                <span className="w-4 h-4 bg-red-500 rounded-full text-[9px] font-black text-white flex items-center justify-center flex-shrink-0">
+                  {nbRetard}
+                </span>
+              )}
+            </button>
+            <button onClick={() => setShowAnalytics(true)} className="p-2 text-slate-400 hover:text-white flex-shrink-0">
+              <TrendingUp className="w-5 h-5" />
+            </button>
+            <button onClick={() => setShowContacts(true)} className="p-2 text-slate-400 hover:text-white flex-shrink-0">
+              <Users className="w-5 h-5" />
+            </button>
+            <button onClick={() => setShowPrestations(true)} className="p-2 text-slate-400 hover:text-white flex-shrink-0">
+              <Wrench className="w-5 h-5" />
+            </button>
+            <button onClick={() => setShowProfile(true)} className="p-2 text-slate-400 hover:text-white flex-shrink-0">
+              <User className="w-5 h-5" />
+            </button>
+            <button onClick={() => setShowLogoutConfirm(true)} className="p-2 text-slate-600 hover:text-red-400 flex-shrink-0">
+              <LogOut className="w-5 h-5" />
+            </button>
+          </nav>
         </div>
       </header>
 
@@ -425,7 +425,7 @@ if (showContacts) return <Contacts user={user} onBack={() => setShowContacts(fal
                 <Receipt className="w-12 h-12 mx-auto text-slate-200 mb-3" />
                 <p className="text-slate-400 font-medium">Aucune facture</p>
                 <p className="text-slate-300 text-sm mt-1 px-8">
-                  {hasActiveFilters ? 'Essayez de modifier vos filtres' : 'Les factures sont générées depuis l\'aperçu d\'un devis accepté'}
+                  {hasActiveFilters ? 'Essayez de modifier vos filtres' : "Les factures sont générées depuis l'aperçu d'un devis accepté"}
                 </p>
               </div>
             ) : (
@@ -434,25 +434,21 @@ if (showContacts) return <Contacts user={user} onBack={() => setShowContacts(fal
                 const peutRelancer = retard && (inv.nb_relances ?? 0) < 3 && inv.clients?.email;
                 return (
                   <div key={inv.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${retard ? 'border-red-200' : 'border-slate-100'}`}>
-                    <div className="p-5 flex items-center gap-4">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${retard ? 'bg-red-50 text-red-500' : 'bg-slate-50 text-slate-600'}`}>
-                        <Receipt className="w-6 h-6" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-slate-900 truncate">{inv.clients?.nom ?? "Client inconnu"}</p>
-                        <p className="text-[10px] text-slate-400 font-mono">{inv.numero_facture}</p>
-                        {retard && (
-                          <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-red-100 text-red-600 rounded-full text-[10px] font-bold">
-                            ⚠️ En retard{(inv.nb_relances ?? 0) > 0 ? ` · ${inv.nb_relances} relance${inv.nb_relances > 1 ? 's' : ''}` : ''}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="font-black text-slate-900">{Number(inv.montant_ttc).toFixed(2)} €</p>
-                        <span className={`text-[10px] font-bold uppercase tracking-wide ${inv.statut === "payée" ? "text-green-600" : "text-amber-500"}`}>
+                    <div className="p-5">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1 min-w-0 pr-3">
+                          <p className="font-bold text-slate-900 truncate">{inv.clients?.nom ?? "Client inconnu"}</p>
+                          {retard && (
+                            <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-red-100 text-red-600 rounded-full text-[10px] font-bold">
+                              ⚠️ En retard{(inv.nb_relances ?? 0) > 0 ? ` · ${inv.nb_relances} relance${inv.nb_relances > 1 ? 's' : ''}` : ''}
+                            </span>
+                          )}
+                        </div>
+                        <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full flex-shrink-0 ${inv.statut === "payée" ? "text-green-600 bg-green-50" : "text-amber-500 bg-amber-50"}`}>
                           {inv.statut === "payée" ? "Payée" : "Non payée"}
                         </span>
                       </div>
+                      <p className="font-black text-xl text-slate-900">{Number(inv.montant_ttc).toFixed(2)} €</p>
                     </div>
                     <div className="flex border-t border-slate-50 bg-slate-50/30">
                       <button onClick={() => onViewInvoice(inv)} className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-slate-600 transition border-r border-slate-50">
@@ -471,35 +467,34 @@ if (showContacts) return <Contacts user={user} onBack={() => setShowContacts(fal
               })
             )
           )}
-    
 
-        {viewMode === 'devis' && totalPagesDevis > 1 && (
-          <div className="flex items-center justify-center gap-3 mt-6">
-            <button onClick={() => setPageDevis(p => Math.max(1, p - 1))} disabled={pageDevis === 1}
-              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-blue-300 disabled:opacity-30 transition">
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <span className="text-sm font-bold text-slate-600">{pageDevis} / {totalPagesDevis}</span>
-            <button onClick={() => setPageDevis(p => Math.min(totalPagesDevis, p + 1))} disabled={pageDevis === totalPagesDevis}
-              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-blue-300 disabled:opacity-30 transition">
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-        )}
+          {viewMode === 'devis' && totalPagesDevis > 1 && (
+            <div className="flex items-center justify-center gap-3 mt-6">
+              <button onClick={() => setPageDevis(p => Math.max(1, p - 1))} disabled={pageDevis === 1}
+                className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-blue-300 disabled:opacity-30 transition">
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <span className="text-sm font-bold text-slate-600">{pageDevis} / {totalPagesDevis}</span>
+              <button onClick={() => setPageDevis(p => Math.min(totalPagesDevis, p + 1))} disabled={pageDevis === totalPagesDevis}
+                className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-blue-300 disabled:opacity-30 transition">
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          )}
 
-        {viewMode === 'factures' && totalPagesFactures > 1 && (
-          <div className="flex items-center justify-center gap-3 mt-6">
-            <button onClick={() => setPageFactures(p => Math.max(1, p - 1))} disabled={pageFactures === 1}
-              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-slate-300 disabled:opacity-30 transition">
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <span className="text-sm font-bold text-slate-600">{pageFactures} / {totalPagesFactures}</span>
-            <button onClick={() => setPageFactures(p => Math.min(totalPagesFactures, p + 1))} disabled={pageFactures === totalPagesFactures}
-              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-slate-300 disabled:opacity-30 transition">
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          </div>
-        )}
+          {viewMode === 'factures' && totalPagesFactures > 1 && (
+            <div className="flex items-center justify-center gap-3 mt-6">
+              <button onClick={() => setPageFactures(p => Math.max(1, p - 1))} disabled={pageFactures === 1}
+                className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-slate-300 disabled:opacity-30 transition">
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <span className="text-sm font-bold text-slate-600">{pageFactures} / {totalPagesFactures}</span>
+              <button onClick={() => setPageFactures(p => Math.min(totalPagesFactures, p + 1))} disabled={pageFactures === totalPagesFactures}
+                className="p-2 rounded-xl bg-white border border-slate-200 text-slate-500 hover:border-slate-300 disabled:opacity-30 transition">
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            </div>
+          )}
         </div>
       </main>
 
