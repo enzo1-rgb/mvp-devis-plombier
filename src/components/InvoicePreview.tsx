@@ -5,7 +5,7 @@ import { ArrowLeft, Receipt, Mail, Printer, CheckCircle2, Download } from 'lucid
 import { pdf } from '@react-pdf/renderer';
 import FacturePDF from './FacturePDF';
 
-interface Invoice {
+export interface Invoice {
   id: string;
   numero_facture: string;
   montant_ht: number;

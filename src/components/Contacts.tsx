@@ -4,11 +4,58 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import {
   ArrowLeft, Users, Plus, Search, Pencil, Trash2,
   Save, X, Phone, Mail, MapPin, FileText, Receipt, ChevronDown, ChevronUp,
+  ExternalLink, Loader2,
 } from 'lucide-react';
+import { Quote } from '../lib/types';
 
 interface ContactsProps {
   user: SupabaseUser;
   onBack: () => void;
+  onViewQuote: (quote: Quote) => void;
+  onViewInvoice: (invoice: Record<string, unknown>) => void;
+}
+
+interface DevisRow {
+  id: string;
+  plombier_id: string;
+  client_id: string;
+  numero: string | null;
+  statut: string;
+  date_emission: string | null;
+  montant_ht: number | string;
+  tva: number | string;
+  tva_rate: number | null;
+  montant_ttc: number | string;
+  notes: string | null;
+  created_at: string | null;
+  signe_par_client: boolean | null;
+  date_signature: string | null;
+  facture_generee_at: string | null;
+  devis_modifie_at: string | null;
+  clients: { nom: string; adresse: string } | null;
+}
+
+function toQuote(row: DevisRow): Quote {
+  return {
+    id: row.id,
+    plombier_id: row.plombier_id,
+    client_id: row.client_id,
+    client_name: row.clients?.nom ?? 'Client inconnu',
+    client_address: row.clients?.adresse ?? '',
+    numero: row.numero ?? undefined,
+    status: (row.statut as Quote['status']) ?? 'brouillon',
+    date_emission: row.date_emission ?? undefined,
+    total_ht: Number(row.montant_ht) || 0,
+    tva: Number(row.tva) || 0,
+    tva_rate: Number(row.tva_rate) || 0.10,
+    total_ttc: Number(row.montant_ttc) || 0,
+    notes: row.notes ?? undefined,
+    created_at: row.created_at ?? undefined,
+    signe_par_client: row.signe_par_client ?? false,
+    date_signature: row.date_signature ?? undefined,
+    facture_generee_at: row.facture_generee_at ?? undefined,
+    devis_modifie_at: row.devis_modifie_at ?? undefined,
+  };
 }
 
 interface Client {
@@ -36,7 +83,7 @@ interface FactureClient {
   created_at: string;
 }
 
-export default function Contacts({ user, onBack }: ContactsProps) {
+export default function Contacts({ user, onBack, onViewQuote, onViewInvoice }: ContactsProps) {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -48,6 +95,7 @@ export default function Contacts({ user, onBack }: ContactsProps) {
   const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; ok: boolean } | null>(null);
+  const [openingHistory, setOpeningHistory] = useState<{ kind: 'devis' | 'facture'; id: string } | null>(null);
 
   const [formNom, setFormNom] = useState('');
   const [formAdresse, setFormAdresse] = useState('');
@@ -167,6 +215,42 @@ export default function Contacts({ user, onBack }: ContactsProps) {
     (c.email ?? '').toLowerCase().includes(search.toLowerCase()) ||
     (c.telephone ?? '').includes(search)
   );
+
+  const openDevisFromHistory = async (devisId: string) => {
+    setOpeningHistory({ kind: 'devis', id: devisId });
+    try {
+      const { data, error } = await supabase
+        .from('devis')
+        .select('*, clients (nom, adresse)')
+        .eq('id', devisId)
+        .eq('plombier_id', user.id)
+        .single();
+      if (error || !data) throw error ?? new Error('not found');
+      onViewQuote(toQuote(data as unknown as DevisRow));
+    } catch {
+      setToast({ message: "Impossible d'ouvrir ce devis.", ok: false });
+    } finally {
+      setOpeningHistory(null);
+    }
+  };
+
+  const openFactureFromHistory = async (factureId: string) => {
+    setOpeningHistory({ kind: 'facture', id: factureId });
+    try {
+      const { data, error } = await supabase
+        .from('factures')
+        .select('*, clients (nom, email)')
+        .eq('id', factureId)
+        .eq('plombier_id', user.id)
+        .single();
+      if (error || !data) throw error ?? new Error('not found');
+      onViewInvoice(data as Record<string, unknown>);
+    } catch {
+      setToast({ message: "Impossible d'ouvrir cette facture.", ok: false });
+    } finally {
+      setOpeningHistory(null);
+    }
+  };
 
   const statutColor = (s: string) => {
     if (s === 'accepté' || s === 'payée') return 'text-green-600 bg-green-50';
@@ -369,17 +453,37 @@ export default function Contacts({ user, onBack }: ContactsProps) {
                             <p className="text-xs text-slate-300">Aucun devis</p>
                           ) : (
                             <div className="space-y-1.5">
-                              {clientHistory[client.id]?.devis.map((d) => (
-                                <div key={d.id} className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-slate-100">
-                                  <div>
-                                    <span className="text-xs font-mono text-slate-500">{d.numero ?? d.id.slice(0, 8).toUpperCase()}</span>
-                                    <span className={`ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statutColor(d.statut)}`}>
-                                      {d.statut}
-                                    </span>
+                              {clientHistory[client.id]?.devis.map((d) => {
+                                const opening = openingHistory?.kind === 'devis' && openingHistory.id === d.id;
+                                return (
+                                  <div
+                                    key={d.id}
+                                    className="flex items-center justify-between gap-2 bg-white rounded-xl px-3 py-2 border border-slate-100"
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <span className="text-xs font-mono text-slate-500 break-all">{d.numero ?? d.id.slice(0, 8).toUpperCase()}</span>
+                                      <span className={`ml-2 inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-full align-middle ${statutColor(d.statut)}`}>
+                                        {d.statut}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="text-xs font-bold text-slate-700 tabular-nums whitespace-nowrap">
+                                        {Number(d.montant_ttc).toFixed(2)} €
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => openDevisFromHistory(d.id)}
+                                        disabled={!!openingHistory}
+                                        title="Ouvrir le devis"
+                                        aria-label="Ouvrir le devis"
+                                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-40 transition"
+                                      >
+                                        {opening ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                                      </button>
+                                    </div>
                                   </div>
-                                  <span className="text-xs font-bold text-slate-700">{Number(d.montant_ttc).toFixed(2)} €</span>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -393,17 +497,37 @@ export default function Contacts({ user, onBack }: ContactsProps) {
                             <p className="text-xs text-slate-300">Aucune facture</p>
                           ) : (
                             <div className="space-y-1.5">
-                              {clientHistory[client.id]?.factures.map((f) => (
-                                <div key={f.id} className="flex items-center justify-between bg-white rounded-xl px-3 py-2 border border-slate-100">
-                                  <div>
-                                    <span className="text-xs font-mono text-slate-500">{f.numero_facture}</span>
-                                    <span className={`ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statutColor(f.statut)}`}>
-                                      {f.statut === 'payée' ? 'Payée' : 'Non payée'}
-                                    </span>
+                              {clientHistory[client.id]?.factures.map((f) => {
+                                const opening = openingHistory?.kind === 'facture' && openingHistory.id === f.id;
+                                return (
+                                  <div
+                                    key={f.id}
+                                    className="flex items-center justify-between gap-2 bg-white rounded-xl px-3 py-2 border border-slate-100"
+                                  >
+                                    <div className="min-w-0 flex-1">
+                                      <span className="text-xs font-mono text-slate-500 break-all">{f.numero_facture}</span>
+                                      <span className={`ml-2 inline-block text-[10px] font-bold px-1.5 py-0.5 rounded-full align-middle ${statutColor(f.statut)}`}>
+                                        {f.statut === 'payée' ? 'Payée' : 'Non payée'}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                      <span className="text-xs font-bold text-slate-700 tabular-nums whitespace-nowrap">
+                                        {Number(f.montant_ttc).toFixed(2)} €
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => openFactureFromHistory(f.id)}
+                                        disabled={!!openingHistory}
+                                        title="Ouvrir la facture"
+                                        aria-label="Ouvrir la facture"
+                                        className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-40 transition"
+                                      >
+                                        {opening ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                                      </button>
+                                    </div>
                                   </div>
-                                  <span className="text-xs font-bold text-slate-700">{Number(f.montant_ttc).toFixed(2)} €</span>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           )}
                         </div>

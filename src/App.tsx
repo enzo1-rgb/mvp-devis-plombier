@@ -1,23 +1,26 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { User } from "@supabase/supabase-js";
 import { supabase } from "./lib/supabase";
 import { Quote } from "./lib/types";
 import Auth from "./components/Auth";
 import Dashboard from "./components/Dashboard";
 import QuoteForm from "./components/QuoteForm";
 import QuotePreview from "./components/QuotePreview";
-import InvoicePreview from "./components/InvoicePreview";
+import InvoicePreview, { type Invoice } from "./components/InvoicePreview";
 import ClientPortal from "./components/ClientPortal";
 
 export default function App() {
-  const [user, setUser] = useState(null);
+  const urlParams = new URLSearchParams(window.location.search);
+  const clientToken = urlParams.get("token");
+
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState<"dashboard" | "create" | "preview" | "invoice">("dashboard");
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null);
-  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [dashboardInitialTab, setDashboardInitialTab] = useState<"devis" | "factures">("devis");
-
-  const urlParams = new URLSearchParams(window.location.search);
-  const clientToken = urlParams.get('token');
+  const [openContactsAfterDocumentBack, setOpenContactsAfterDocumentBack] = useState(false);
+  const returnToContactsAfterDocRef = useRef(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -28,6 +31,10 @@ export default function App() {
       setUser(session?.user ?? null);
     });
     return () => subscription.unsubscribe();
+  }, []);
+
+  const clearOpenContactsAfterBack = useCallback(() => {
+    setOpenContactsAfterDocumentBack(false);
   }, []);
 
   if (clientToken) {
@@ -44,17 +51,24 @@ export default function App() {
     setCurrentView("create");
   };
 
-  const handleViewQuote = (quote: Quote) => {
+  type ViewFromContactsOpts = { fromContacts?: boolean };
+
+  const handleViewQuote = (quote: Quote, options?: ViewFromContactsOpts) => {
+    returnToContactsAfterDocRef.current = !!options?.fromContacts;
     setSelectedQuote(quote);
     setCurrentView("preview");
   };
 
-  const handleViewInvoice = (invoice: any) => {
+  const handleViewInvoice = (invoice: Invoice, options?: ViewFromContactsOpts) => {
+    returnToContactsAfterDocRef.current = !!options?.fromContacts;
     setSelectedInvoice(invoice);
     setCurrentView("invoice");
   };
 
   const handleBackToDashboard = () => {
+    const resumeContacts = returnToContactsAfterDocRef.current;
+    returnToContactsAfterDocRef.current = false;
+    setOpenContactsAfterDocumentBack(resumeContacts);
     setDashboardInitialTab("devis");
     setCurrentView("dashboard");
     setSelectedQuote(null);
@@ -62,6 +76,9 @@ export default function App() {
   };
 
   const handleBackFromInvoice = () => {
+    const resumeContacts = returnToContactsAfterDocRef.current;
+    returnToContactsAfterDocRef.current = false;
+    setOpenContactsAfterDocumentBack(resumeContacts);
     setDashboardInitialTab("factures");
     setCurrentView("dashboard");
     setSelectedInvoice(null);
@@ -86,6 +103,8 @@ export default function App() {
         <Dashboard
           user={user}
           initialTab={dashboardInitialTab}
+          openContactsAfterDocumentBack={openContactsAfterDocumentBack}
+          onOpenContactsAfterDocumentBackConsumed={clearOpenContactsAfterBack}
           onCreateQuote={handleCreateQuote}
           onViewQuote={handleViewQuote}
           onEditQuote={handleEditQuote}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { Quote } from "../lib/types";
 import {
@@ -57,13 +57,17 @@ function toQuote(row: DevisRow): Quote {
   };
 }
 
+type ViewDocumentOptions = { fromContacts?: boolean };
+
 interface DashboardProps {
   user: SupabaseUser;
   initialTab?: "devis" | "factures";
+  openContactsAfterDocumentBack?: boolean;
+  onOpenContactsAfterDocumentBackConsumed?: () => void;
   onCreateQuote: () => void;
-  onViewQuote: (quote: Quote) => void;
+  onViewQuote: (quote: Quote, options?: ViewDocumentOptions) => void;
   onEditQuote: (quote: Quote) => void;
-  onViewInvoice: (invoice: any) => void;
+  onViewInvoice: (invoice: any, options?: ViewDocumentOptions) => void;
 }
 
 type StatutFilter = 'tous' | 'brouillon' | 'envoyé' | 'accepté' | 'refusé';
@@ -71,7 +75,14 @@ type PeriodeFilter = 'tout' | 'mois' | '3mois';
 type StatutFactureFilter = 'tous' | 'payée' | 'non_payée';
 
 export default function Dashboard({
-  user, initialTab, onCreateQuote, onViewQuote, onEditQuote, onViewInvoice,
+  user,
+  initialTab,
+  openContactsAfterDocumentBack,
+  onOpenContactsAfterDocumentBackConsumed,
+  onCreateQuote,
+  onViewQuote,
+  onEditQuote,
+  onViewInvoice,
 }: DashboardProps) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -97,6 +108,11 @@ export default function Dashboard({
   useEffect(() => { loadData(); }, [viewMode]);
   useEffect(() => { setPageDevis(1); }, [search, statutFilter, periodeFilter]);
   useEffect(() => { setPageFactures(1); }, [search, statutFactureFilter]);
+  useLayoutEffect(() => {
+    if (!openContactsAfterDocumentBack) return;
+    setShowContacts(true);
+    onOpenContactsAfterDocumentBackConsumed?.();
+  }, [openContactsAfterDocumentBack, onOpenContactsAfterDocumentBackConsumed]);
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(null), 3500);
@@ -198,7 +214,14 @@ export default function Dashboard({
   if (showProfile) return <Profile user={user} onBack={() => setShowProfile(false)} />;
   if (showPrestations) return <Prestations user={user} onBack={() => setShowPrestations(false)} />;
   if (showAnalytics) return <Analytics user={user} onBack={() => setShowAnalytics(false)} />;
-  if (showContacts) return <Contacts user={user} onBack={() => setShowContacts(false)} />;
+  if (showContacts) return (
+    <Contacts
+      user={user}
+      onBack={() => setShowContacts(false)}
+      onViewQuote={(q) => onViewQuote(q, { fromContacts: true })}
+      onViewInvoice={(inv) => onViewInvoice(inv, { fromContacts: true })}
+    />
+  );
 
   const now = new Date();
   const filteredQuotes = quotes.filter((q) => {
