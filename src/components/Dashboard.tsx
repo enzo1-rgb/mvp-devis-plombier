@@ -387,8 +387,8 @@ export default function Dashboard({
               paginatedQuotes.map((quote) => (
                 <div key={quote.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
                   <div className="p-5">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1 min-w-0 pr-3">
+                    <div className="flex justify-between items-start gap-3 mb-2 min-h-[3.5rem]">
+                      <div className="flex-1 min-w-0">
                         <p className="font-bold text-slate-900 truncate">{quote.client_name}</p>
                         {quote.signe_par_client && (
                           <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px] font-bold">
@@ -403,7 +403,10 @@ export default function Dashboard({
                         : "pill-brouillon"
                       }`}>{quote.status}</span>
                     </div>
-                    <p className="font-black text-xl text-slate-900">{quote.total_ttc.toFixed(2)} €</p>
+                    <div className="flex items-end justify-between gap-3 mt-1">
+                      <p className="font-black text-xl text-slate-900 tabular-nums leading-none">{quote.total_ttc.toFixed(2)} €</p>
+                      <p className="text-[10px] text-slate-400 leading-none pb-0.5">{quote.created_at ? new Date(quote.created_at).toLocaleDateString('fr-FR') : ''}</p>
+                    </div>
                   </div>
                   <div className="flex border-t border-slate-50 bg-slate-50/30">
                     <button onClick={() => onViewQuote(quote)} className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-blue-600 border-r border-slate-50">
@@ -435,20 +438,24 @@ export default function Dashboard({
                 return (
                   <div key={inv.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${retard ? 'border-red-200' : 'border-slate-100'}`}>
                     <div className="p-5">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex-1 min-w-0 pr-3">
+                      <div className="flex justify-between items-start gap-3 mb-2 min-h-[3.5rem]">
+                        <div className="flex-1 min-w-0">
                           <p className="font-bold text-slate-900 truncate">{inv.clients?.nom ?? "Client inconnu"}</p>
+                          <p className="text-[10px] text-slate-400 font-mono leading-tight mt-0.5">{inv.numero_facture}</p>
                           {retard && (
                             <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-red-100 text-red-600 rounded-full text-[10px] font-bold">
                               ⚠️ En retard{(inv.nb_relances ?? 0) > 0 ? ` · ${inv.nb_relances} relance${inv.nb_relances > 1 ? 's' : ''}` : ''}
                             </span>
                           )}
                         </div>
-                        <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full flex-shrink-0 ${inv.statut === "payée" ? "text-green-600 bg-green-50" : "text-amber-500 bg-amber-50"}`}>
+                        <span className={`pill-status flex-shrink-0 ${inv.statut === "payée" ? "text-green-600 bg-green-50" : "text-amber-500 bg-amber-50"}`}>
                           {inv.statut === "payée" ? "Payée" : "Non payée"}
                         </span>
                       </div>
-                      <p className="font-black text-xl text-slate-900">{Number(inv.montant_ttc).toFixed(2)} €</p>
+                      <div className="flex items-end justify-between gap-3 mt-1">
+                        <p className="font-black text-xl text-slate-900 tabular-nums leading-none">{Number(inv.montant_ttc).toFixed(2)} €</p>
+                        <p className="text-[10px] text-slate-400 leading-none pb-0.5">{inv.created_at ? new Date(inv.created_at).toLocaleDateString('fr-FR') : ''}</p>
+                      </div>
                     </div>
                     <div className="flex border-t border-slate-50 bg-slate-50/30">
                       <button onClick={() => onViewInvoice(inv)} className="flex-1 py-3 flex justify-center gap-1.5 text-[10px] font-bold uppercase text-slate-400 hover:text-slate-600 transition border-r border-slate-50">
