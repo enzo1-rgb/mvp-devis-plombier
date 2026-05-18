@@ -319,7 +319,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen min-h-dvh bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           <p className="mt-4 text-gray-600">Chargement...</p>
@@ -329,7 +329,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen min-h-dvh bg-gray-50 pb-[env(safe-area-inset-bottom,0px)]">
 
       {toast && (
         <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl font-bold text-sm text-white transition-all ${toast.ok ? 'bg-green-500' : 'bg-red-500'}`}>
@@ -432,41 +432,43 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
         <div className="max-w-5xl mx-auto px-4 pt-4 print:hidden">
           <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-md">
             <h3 className="font-bold text-gray-800 mb-3">Envoyer le devis par email</h3>
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch">
               <input
                 type="email"
                 value={clientEmail}
                 onChange={(e) => { setClientEmail(e.target.value); setEmailError(null); }}
                 placeholder="client@exemple.fr"
-                className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full min-w-0 sm:flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 disabled={sendingEmail}
               />
-              <button
-                onClick={sendEmail}
-                disabled={sendingEmail}
-                className="px-5 py-2 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition disabled:opacity-50"
-              >
-                {sendingEmail ? 'Envoi...' : 'Envoyer'}
-              </button>
-              <button
-                onClick={() => { setShowEmailForm(false); setEmailError(null); setClientEmail(''); }}
-                disabled={sendingEmail}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition"
-              >
-                Annuler
-              </button>
+              <div className="flex gap-2 sm:contents">
+                <button
+                  onClick={sendEmail}
+                  disabled={sendingEmail}
+                  className="flex-1 sm:flex-none px-5 py-2.5 bg-emerald-600 text-white rounded-lg font-semibold hover:bg-emerald-700 transition disabled:opacity-50"
+                >
+                  {sendingEmail ? 'Envoi...' : 'Envoyer'}
+                </button>
+                <button
+                  onClick={() => { setShowEmailForm(false); setEmailError(null); setClientEmail(''); }}
+                  disabled={sendingEmail}
+                  className="flex-1 sm:flex-none px-4 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition"
+                >
+                  Annuler
+                </button>
+              </div>
             </div>
             {emailError && <p className="text-red-600 text-sm mt-2">{emailError}</p>}
           </div>
         </div>
       )}
 
-      <main className="quote-main max-w-5xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <div className="quote-content bg-white rounded-lg shadow-lg p-8 mb-6">
+      <main className="quote-main max-w-5xl mx-auto w-full px-4 pt-6 pb-[max(3rem,calc(2rem+env(safe-area-inset-bottom,0px)))] sm:px-6 sm:py-8 sm:pb-8 lg:px-8">
+        <div className="quote-content bg-white rounded-lg shadow-lg p-4 sm:p-8 mb-8 sm:mb-6">
 
-          <div className="flex justify-between items-start mb-8 pb-6 border-b-2">
-            <div>
-              <h2 className="text-3xl font-bold text-blue-600 mb-2">DEVIS</h2>
+          <div className="flex flex-col gap-6 sm:flex-row sm:justify-between sm:items-start mb-8 pb-6 border-b-2">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-2xl sm:text-3xl font-bold text-blue-600 mb-2">DEVIS</h2>
               <p className="text-gray-600">
                 Date :{' '}
                 {quote.date_emission
@@ -477,7 +479,7 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
                 Référence : {quote.numero ?? quote.id?.slice(0, 8).toUpperCase() ?? '-'}
               </p>
               {quote.signe_par_client && (
-                <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">
+                <div className="mt-2 inline-flex flex-wrap max-w-full items-center gap-1.5 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-xs font-bold leading-snug">
                   ✅ Signé électroniquement par le client
                   {quote.date_signature && (
                     <span className="font-normal"> le {new Date(quote.date_signature).toLocaleDateString('fr-FR')}</span>
@@ -486,57 +488,57 @@ export default function QuotePreview({ quote, onBack }: QuotePreviewProps) {
               )}
             </div>
 
-            <div className="text-right">
-              <p className="text-sm text-gray-600 mb-1">Statut</p>
+            <div className="w-full shrink-0 sm:w-auto sm:max-w-md sm:text-right">
+              <p className="text-sm font-medium text-gray-600 mb-2 sm:mb-1">Statut</p>
 
               {status === 'brouillon' && (
-                <div className="flex flex-wrap gap-2 justify-end">
-                  <button onClick={() => updateStatus('envoyé')} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                  <button onClick={() => updateStatus('envoyé')} className="w-full sm:w-auto px-4 py-2.5 bg-blue-600 text-white rounded-lg font-semibold text-sm hover:bg-blue-700 transition text-center">
                     Marquer comme envoyé
                   </button>
-                  <button onClick={() => setShowCancelConfirm(true)} className="px-4 py-2 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 transition">
+                  <button onClick={() => setShowCancelConfirm(true)} className="w-full sm:w-auto px-4 py-2.5 bg-gray-600 text-white rounded-lg font-semibold text-sm hover:bg-gray-700 transition text-center">
                     Annuler
                   </button>
                 </div>
               )}
 
               {status === 'envoyé' && (
-                <div className="flex flex-wrap gap-2 justify-end">
-                  <button onClick={() => updateStatus('accepté')} className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition">
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                  <button onClick={() => updateStatus('accepté')} className="w-full sm:w-auto px-4 py-2.5 bg-green-600 text-white rounded-lg font-semibold text-sm hover:bg-green-700 transition text-center">
                     Accepté
                   </button>
-                  <button onClick={() => updateStatus('refusé')} className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition">
+                  <button onClick={() => updateStatus('refusé')} className="w-full sm:w-auto px-4 py-2.5 bg-red-600 text-white rounded-lg font-semibold text-sm hover:bg-red-700 transition text-center">
                     Refusé
                   </button>
-                  <button onClick={() => updateStatus('brouillon')} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition">
-                    ← Retour
+                  <button onClick={() => updateStatus('brouillon')} className="w-full sm:w-auto px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm hover:bg-gray-300 transition text-center">
+                    ← Retour brouillon
                   </button>
                 </div>
               )}
 
               {(status === 'accepté' || status === 'refusé') && (
-                <div className="flex flex-col items-end gap-2">
+                <div className="flex flex-col gap-2 sm:items-end">
                   {!showStatusEdit ? (
-                    <div className="flex items-center gap-2">
-                      <span className={`inline-block px-4 py-2 rounded-lg font-semibold ${status === 'accepté' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                      <span className={`inline-flex w-full sm:w-auto justify-center px-4 py-2.5 rounded-lg font-semibold text-sm text-center ${status === 'accepté' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                         {status === 'accepté' ? 'Accepté' : 'Refusé'}
                       </span>
-                      <button onClick={() => setShowStatusEdit(true)} className="px-3 py-2 text-sm bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition">
+                      <button onClick={() => setShowStatusEdit(true)} className="w-full sm:w-auto px-4 py-2.5 text-sm font-semibold bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition text-center">
                         Modifier
                       </button>
                     </div>
                   ) : (
-                    <div className="flex flex-wrap gap-2 justify-end">
-                      <button onClick={() => { updateStatus('brouillon'); setShowStatusEdit(false); }} className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition text-sm">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                      <button onClick={() => { updateStatus('brouillon'); setShowStatusEdit(false); }} className="w-full sm:w-auto px-4 py-2.5 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition text-sm text-center">
                         Brouillon
                       </button>
-                      <button onClick={() => { updateStatus('accepté'); setShowStatusEdit(false); }} className="px-3 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition text-sm">
+                      <button onClick={() => { updateStatus('accepté'); setShowStatusEdit(false); }} className="w-full sm:w-auto px-4 py-2.5 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition text-sm text-center">
                         Accepté
                       </button>
-                      <button onClick={() => { updateStatus('refusé'); setShowStatusEdit(false); }} className="px-3 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition text-sm">
+                      <button onClick={() => { updateStatus('refusé'); setShowStatusEdit(false); }} className="w-full sm:w-auto px-4 py-2.5 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition text-sm text-center">
                         Refusé
                       </button>
-                      <button onClick={() => setShowStatusEdit(false)} className="px-3 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition text-sm">
+                      <button onClick={() => setShowStatusEdit(false)} className="w-full sm:w-auto px-4 py-2.5 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition text-sm text-center">
                         Annuler
                       </button>
                     </div>
