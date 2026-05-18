@@ -223,7 +223,7 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen min-h-dvh bg-slate-50 flex items-center justify-center">
         <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-slate-600" />
       </div>
     );
@@ -233,7 +233,7 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
   const clientAddr = clientInfo?.adresse || invoice.client_address || '';
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen min-h-dvh bg-slate-50 pb-[env(safe-area-inset-bottom,0px)]">
 
       {toast && (
         <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl font-bold text-sm text-white ${toast.ok ? 'bg-green-500' : 'bg-red-500'}`}>
@@ -335,34 +335,50 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
         <div className="max-w-5xl mx-auto px-4 pt-4 print:hidden">
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-md">
             <h3 className="font-bold text-slate-800 mb-3">Envoyer la facture par email</h3>
-            <div className="flex gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-stretch">
               <input
                 type="email"
                 value={clientEmail}
-                onChange={(e) => setClientEmail(e.target.value)}
+                onChange={(e) => { setClientEmail(e.target.value); setEmailError(null); }}
                 placeholder="email@client.fr"
-                className="flex-1 border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                className="w-full min-w-0 sm:flex-1 border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-slate-500"
+                disabled={sending}
               />
-              <button onClick={sendInvoiceEmail} disabled={sending} className="px-5 py-2 bg-slate-600 text-white rounded-lg font-semibold hover:bg-slate-700 transition disabled:opacity-50">
-                {sending ? 'Envoi...' : 'Envoyer'}
-              </button>
+              <div className="flex gap-2 w-full sm:contents">
+                <button
+                  type="button"
+                  onClick={sendInvoiceEmail}
+                  disabled={sending}
+                  className="flex-1 sm:flex-none px-5 py-2.5 bg-slate-600 text-white rounded-lg font-semibold hover:bg-slate-700 transition disabled:opacity-50"
+                >
+                  {sending ? 'Envoi...' : 'Envoyer'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowEmailForm(false); setEmailError(null); setClientEmail(''); }}
+                  disabled={sending}
+                  className="flex-1 sm:flex-none px-4 py-2.5 border border-slate-300 rounded-lg hover:bg-slate-50 transition disabled:opacity-50"
+                >
+                  Fermer
+                </button>
+              </div>
             </div>
             {emailError && <p className="text-red-500 text-sm mt-2">{emailError}</p>}
           </div>
         </div>
       )}
 
-      <div className="max-w-5xl mx-auto px-4 py-6">
-        <div className="bg-white rounded-2xl shadow-md p-8">
+      <main className="invoice-main max-w-5xl mx-auto w-full px-4 pt-6 pb-[max(3rem,calc(2rem+env(safe-area-inset-bottom,0px)))] sm:px-6 sm:py-8 sm:pb-8">
+        <div className="bg-white rounded-2xl shadow-md p-4 sm:p-8 mb-8 sm:mb-6">
 
-          <div className="flex justify-between items-start mb-8 pb-6 border-b-2 border-slate-100">
-            <div>
-              <h2 className="text-3xl font-bold text-slate-700 mb-1">FACTURE</h2>
+          <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start mb-8 pb-6 border-b-2 border-slate-100">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-2xl sm:text-3xl font-bold text-slate-700 mb-1">FACTURE</h2>
               <p className="text-slate-400 font-mono text-sm">{invoice.numero_facture}</p>
               <p className="text-slate-500 text-sm mt-1">Émise le : {new Date(invoice.date_emission || invoice.created_at).toLocaleDateString('fr-FR')}</p>
               <p className="text-slate-500 text-sm">Échéance : <span className="font-semibold text-slate-700">{dateEcheance()}</span></p>
             </div>
-            <span className={`px-4 py-2 rounded-xl font-bold text-sm ${statut === 'payée' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+            <span className={`inline-flex w-full sm:w-auto justify-center px-4 py-2.5 rounded-xl font-bold text-sm shrink-0 ${statut === 'payée' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
               {statut === 'payée' ? 'Payée' : 'Non payée'}
             </span>
           </div>
@@ -450,7 +466,7 @@ export default function InvoicePreview({ invoice, onBack }: InvoicePreviewProps)
             <p>Pas d'escompte pour règlement anticipé.</p>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
