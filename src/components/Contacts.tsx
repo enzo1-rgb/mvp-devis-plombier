@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import {
@@ -147,19 +147,33 @@ export default function Contacts({ user, onBack, onViewQuote, onViewInvoice }: C
     }
   };
 
+  const resetFormFields = () => {
+    setFormNom('');
+    setFormAdresse('');
+    setFormEmail('');
+    setFormTelephone('');
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingClient(null);
+    resetFormFields();
+  };
+
   const openAddForm = () => {
     setEditingClient(null);
-    setFormNom(''); setFormAdresse(''); setFormEmail(''); setFormTelephone('');
+    resetFormFields();
     setShowForm(true);
   };
 
   const openEditForm = (c: Client) => {
+    setShowForm(false);
     setEditingClient(c);
     setFormNom(c.nom);
     setFormAdresse(c.adresse || '');
     setFormEmail(c.email || '');
     setFormTelephone(c.telephone || '');
-    setShowForm(true);
+    setExpandedClient(null);
   };
 
   const handleSave = async () => {
@@ -192,7 +206,7 @@ export default function Contacts({ user, onBack, onViewQuote, onViewInvoice }: C
         if (data) setClients(prev => [...prev, data as Client].sort((a, b) => a.nom.localeCompare(b.nom)));
         setToast({ message: 'Contact ajouté.', ok: true });
       }
-      setShowForm(false);
+      closeForm();
     } catch (err) {
       alert((err as { message?: string })?.message ?? 'Erreur lors de la sauvegarde.');
     } finally {
@@ -207,7 +221,83 @@ export default function Contacts({ user, onBack, onViewQuote, onViewInvoice }: C
       setClients(prev => prev.filter(c => c.id !== clientToDelete.id));
       setToast({ message: 'Contact supprimé.', ok: true });
     }
+    if (editingClient?.id === clientToDelete.id) closeForm();
     setClientToDelete(null);
+  };
+
+  const renderContactForm = (title: string, variant: 'card' | 'standalone' = 'standalone') => {
+    const wrapperClass = variant === 'card'
+      ? 'p-5 border-b border-slate-100 bg-blue-50/40'
+      : 'bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-5';
+
+    return (
+      <div className={wrapperClass}>
+        <h2 className="font-bold text-slate-900 mb-4">{title}</h2>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Nom *</label>
+            <input
+              type="text"
+              value={formNom}
+              onChange={(e) => setFormNom(e.target.value)}
+              placeholder="Jean Dupont"
+              className="w-full border border-slate-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Adresse</label>
+            <input
+              type="text"
+              value={formAdresse}
+              onChange={(e) => setFormAdresse(e.target.value)}
+              placeholder="12 rue de la Paix, 75000 Paris"
+              className="w-full border border-slate-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            />
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Email</label>
+              <input
+                type="email"
+                value={formEmail}
+                onChange={(e) => setFormEmail(e.target.value)}
+                placeholder="jean@email.fr"
+                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Téléphone</label>
+              <input
+                type="tel"
+                value={formTelephone}
+                onChange={(e) => setFormTelephone(e.target.value)}
+                placeholder="06 12 34 56 78"
+                className="w-full border border-slate-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+              />
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2 mt-4">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 disabled:opacity-50 transition"
+          >
+            <Save className="w-4 h-4" />
+            {saving ? 'Enregistrement...' : 'Enregistrer'}
+          </button>
+          <button
+            type="button"
+            onClick={closeForm}
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 border border-slate-300 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition"
+          >
+            <X className="w-4 h-4" />
+            Annuler
+          </button>
+        </div>
+      </div>
+    );
   };
 
   const filtered = clients.filter(c =>
@@ -290,75 +380,9 @@ export default function Contacts({ user, onBack, onViewQuote, onViewInvoice }: C
 
       <div className="max-w-2xl mx-auto px-4 pt-6">
 
-        {/* Formulaire ajout / édition */}
-        {showForm && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 mb-5">
-            <h2 className="font-bold text-slate-900 mb-4">
-              {editingClient ? 'Modifier le contact' : 'Nouveau contact'}
-            </h2>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Nom *</label>
-                <input
-                  type="text"
-                  value={formNom}
-                  onChange={(e) => setFormNom(e.target.value)}
-                  placeholder="Jean Dupont"
-                  className="w-full border border-slate-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Adresse</label>
-                <input
-                  type="text"
-                  value={formAdresse}
-                  onChange={(e) => setFormAdresse(e.target.value)}
-                  placeholder="12 rue de la Paix, 75000 Paris"
-                  className="w-full border border-slate-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={formEmail}
-                    onChange={(e) => setFormEmail(e.target.value)}
-                    placeholder="jean@email.fr"
-                    className="w-full border border-slate-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Téléphone</label>
-                  <input
-                    type="tel"
-                    value={formTelephone}
-                    onChange={(e) => setFormTelephone(e.target.value)}
-                    placeholder="06 12 34 56 78"
-                    className="w-full border border-slate-300 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                  />
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl font-semibold text-sm hover:bg-blue-700 disabled:opacity-50 transition"
-              >
-                <Save className="w-4 h-4" />
-                {saving ? 'Enregistrement...' : 'Enregistrer'}
-              </button>
-              <button
-                onClick={() => setShowForm(false)}
-                className="flex items-center gap-1.5 px-4 py-2 border border-slate-300 rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition"
-              >
-                <X className="w-4 h-4" />
-                Annuler
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Formulaire ajout (en haut uniquement) */}
+        {showForm && !editingClient && renderContactForm('Nouveau contact', 'standalone')}
+
 
         {/* Barre de recherche */}
         <div className="relative mb-4">
@@ -384,8 +408,16 @@ export default function Contacts({ user, onBack, onViewQuote, onViewInvoice }: C
               <p className="text-slate-300 text-sm mt-1">Appuyez sur "Ajouter" pour créer votre premier contact</p>
             </div>
           ) : (
-            filtered.map((client) => (
-              <div key={client.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            filtered.map((client) => {
+              const isEditing = editingClient?.id === client.id;
+              return (
+              <div
+                key={client.id}
+                className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${isEditing ? 'border-blue-200 ring-1 ring-blue-100' : 'border-slate-100'}`}
+              >
+                {isEditing ? (
+                  renderContactForm('Modifier le contact', 'card')
+                ) : (
                 <div className="p-5">
                   <div className="flex justify-between items-start">
                     <div className="flex-1 min-w-0">
@@ -413,21 +445,28 @@ export default function Contacts({ user, onBack, onViewQuote, onViewInvoice }: C
                     </div>
                     <div className="flex gap-1.5 ml-3 flex-shrink-0">
                       <button
+                        type="button"
                         onClick={() => openEditForm(client)}
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                        aria-label="Modifier le contact"
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
                       <button
+                        type="button"
                         onClick={() => setClientToDelete(client)}
                         className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
+                        aria-label="Supprimer le contact"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
                 </div>
+                )}
 
+                {!isEditing && (
+                <>
                 {/* Bouton historique */}
                 <button
                   onClick={() => toggleExpand(client.id)}
@@ -535,8 +574,11 @@ export default function Contacts({ user, onBack, onViewQuote, onViewInvoice }: C
                     )}
                   </div>
                 )}
+                </>
+                )}
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
