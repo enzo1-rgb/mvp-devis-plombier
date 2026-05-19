@@ -4,6 +4,7 @@
 
 ProPlomb permet à un artisan plombier de créer, envoyer et suivre ses devis et factures depuis son téléphone ou son ordinateur, sans avoir besoin de compétences comptables.
 
+Ce projet est un MVP.
 ---
 
 ## Aperçu
