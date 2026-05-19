@@ -55,6 +55,9 @@ Pensée pour la gestion administrative depuis le bureau. Tableau des prestations
 ### Statistiques
 - Tableau de bord avec chiffre d'affaires, nombre de devis et de factures
 
+### Contacts
+- Liste de gestion de contacts avec accès à l'historique de chaque client
+
 ---
 
 ## Fonctionnalités à venir (V2)
