@@ -56,7 +56,7 @@ Pensée pour la gestion administrative depuis le bureau. Tableau des prestations
 - Tableau de bord avec chiffre d'affaires, nombre de devis et de factures
 
 ### Contacts
-- Liste de gestion de contacts avec accès à l'historique de chaque client
+- Liste de gestion de contacts avec l'accès à l'historique de chaque client
 
 ---
 
